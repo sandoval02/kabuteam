@@ -52,6 +52,7 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 - [x] Fix blockers only (redeem function ambiguity, missing grants, form reset bug, stale-CSS issue)
 - [x] Room check: TipidWatch's live-camera energy check as a third Scan tab (shared AI chain and cap, ₱/hour from the bill, photos never stored), with e2e coverage through a fake camera
 - [x] Room check alerts resolve by tap (**Naayos na ito**) or automatically when the next readable check no longer sees the device
+- [x] Room check: one open alert per continuous left-on event, with a live monitored time and estimated kWh/₱ that freezes when resolved
 - [ ] Room check on a real phone over HTTPS, per [TESTING.md](TESTING.md) **(you)**
 
 ## Phase 4: Polish and submit (final ~15%)

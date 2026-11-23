@@ -8,7 +8,7 @@ export type RoomCheck = {
   devices: RoomDevice[];
 };
 
-export type RoomEntry = RoomCheck & { at: number; resolved: boolean };
+export type RoomEntry = RoomCheck & { at: number; resolvedAt: number | null };
 
 export type RoomVerdict = { tone: "success" | "warning" | "info"; title: string };
 
@@ -22,8 +22,8 @@ export function costPerHour(c: RoomCheck): number | null {
     : null;
 }
 
-export function verdict(c: RoomCheck & { resolved?: boolean }): RoomVerdict {
-  if (c.resolved) return { tone: "success", title: "Naayos na." };
+export function verdict(c: RoomCheck & { resolvedAt?: number | null }): RoomVerdict {
+  if (c.resolvedAt) return { tone: "success", title: "Naayos na." };
   if (!c.readable)
     return { tone: "warning", title: "Hindi malinaw. Hold the phone steady with the room in view, then check again." };
   const names = deviceLabels(c);
@@ -32,12 +32,44 @@ export function verdict(c: RoomCheck & { resolved?: boolean }): RoomVerdict {
   return { tone: "success", title: "All clear. Walang naiwang bukas." };
 }
 
-export function resolveAlerts(entries: RoomEntry[], check: RoomCheck): RoomEntry[] {
+export function resolveAlerts(entries: RoomEntry[], check: RoomCheck, at: number): RoomEntry[] {
   if (!check.readable) return entries;
   const stillOn = new Set(check.devices.map((d) => d.type));
   return entries.map((entry) =>
-    entry.waste && !entry.resolved && !entry.devices.some((d) => stillOn.has(d.type))
-      ? { ...entry, resolved: true }
+    entry.waste && !entry.resolvedAt && !entry.devices.some((d) => stillOn.has(d.type))
+      ? { ...entry, resolvedAt: at }
       : entry,
   );
+}
+
+export function nextChecks(entries: RoomEntry[], check: RoomCheck, at: number): RoomEntry[] {
+  const resolved = resolveAlerts(entries, check, at);
+  if (check.waste) {
+    const open = resolved.findIndex((entry) => entry.waste && !entry.resolvedAt);
+    if (open >= 0) {
+      const merged = { ...resolved[open], ...check, at: resolved[open].at, resolvedAt: null };
+      return [merged, ...resolved.filter((_, i) => i !== open)].slice(0, 10);
+    }
+  }
+  return [{ ...check, at, resolvedAt: null }, ...resolved].slice(0, 10);
+}
+
+export function monitoredMs(entry: RoomEntry, now: number): number {
+  return Math.max(0, (entry.resolvedAt ?? now) - entry.at);
+}
+
+export function monitoredConsumption(entry: RoomCheck, ms: number): { kwh: number; pesos: number | null } {
+  const hours = ms / 3_600_000;
+  const kwh = (entry.devices.reduce((sum, d) => sum + d.watts, 0) / 1000) * hours;
+  const perHour = costPerHour(entry);
+  return { kwh, pesos: perHour === null ? null : perHour * hours };
+}
+
+export function durationLabel(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "under 1 min";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }

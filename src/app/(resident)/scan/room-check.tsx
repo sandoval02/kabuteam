@@ -4,7 +4,17 @@ import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } fro
 import { Camera, ScanLine } from "lucide-react";
 import { PhotoCapture, postPhoto } from "@/components/photo-capture";
 import { Button, CheckField, Field, Notice, peso } from "@/components/ui";
-import { costPerHour, deviceLabels, resolveAlerts, verdict, type RoomCheck, type RoomEntry } from "@/lib/room-check";
+import {
+  costPerHour,
+  deviceLabels,
+  durationLabel,
+  monitoredConsumption,
+  monitoredMs,
+  nextChecks,
+  verdict,
+  type RoomCheck,
+  type RoomEntry,
+} from "@/lib/room-check";
 
 const MINUTE = 60_000;
 // The server's 20-per-hour AI cap is the real limit; below 3 minutes it runs out before the hour does.
@@ -52,6 +62,8 @@ function say(text: string) {
 
 const clock = (at: number) => new Date(at).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" });
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const nfKwh = new Intl.NumberFormat("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+const kwhSmall = (n: number) => `${nfKwh.format(n)} kWh`;
 
 /** Live camera (or a photo) → what was left on with nobody there, in pesos per hour. Photos are never saved. */
 export function RoomCheck() {
@@ -129,12 +141,13 @@ export function RoomCheck() {
       return;
     }
     const at = Date.now();
-    setChecks((prev) => [{ ...check, at, resolved: false }, ...resolveAlerts(prev, check)].slice(0, 10));
+    setChecks((prev) => nextChecks(prev, check, at));
     if (voice) say(spoken(check));
   }
 
   function resolveAlert(at: number) {
-    setChecks((prev) => prev.map((entry) => (entry.at === at && !entry.resolved ? { ...entry, resolved: true } : entry)));
+    const resolvedAt = Math.max(now, at);
+    setChecks((prev) => prev.map((entry) => (entry.at === at && !entry.resolvedAt ? { ...entry, resolvedAt } : entry)));
     if (voice) say("Naayos na.");
   }
 
@@ -156,6 +169,13 @@ export function RoomCheck() {
     };
   }, [stream]);
 
+  const hasOpenAlerts = checks.some((c) => c.waste && !c.resolvedAt);
+  useEffect(() => {
+    if (!hasOpenAlerts || stream) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [hasOpenAlerts, stream]);
+
   const live = stream !== null;
   const result = checks[0] && <Result entry={checks[0]} />;
   const alerts = checks.filter((c) => c.waste);
@@ -164,8 +184,10 @@ export function RoomCheck() {
       <h3 className="mb-1 text-small font-semibold">Alerts this visit</h3>
       <ul className="divide-y divide-border text-small">
         {alerts.map((c) => {
-          const resolved = c.resolved;
+          const resolved = c.resolvedAt !== null;
           const names = deviceLabels(c);
+          const elapsed = monitoredMs(c, now);
+          const energy = monitoredConsumption(c, elapsed);
           return (
             <li key={c.at} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0">
@@ -173,6 +195,16 @@ export function RoomCheck() {
                 <p className="text-muted">
                   <span className="num">{clock(c.at)}</span> ·{" "}
                   <span className={resolved ? "text-success" : "text-warning"}>{resolved ? "Naayos na" : "Bukas pa"}</span>
+                </p>
+                <p className="text-muted">
+                  Naiwang bukas: {durationLabel(elapsed)}
+                  {resolved ? "" : " so far"} · <span className="num">{kwhSmall(energy.kwh)}</span>
+                  {energy.pesos !== null && (
+                    <>
+                      {" · "}
+                      <span className="num">{peso(energy.pesos)}</span>
+                    </>
+                  )}
                 </p>
               </div>
               {!resolved && (
@@ -299,12 +331,12 @@ export function RoomCheck() {
 function Result({ entry }: { entry: RoomEntry }) {
   const v = verdict(entry);
   const cost = costPerHour(entry);
-  const open = entry.waste && !entry.resolved;
+  const open = entry.waste && !entry.resolvedAt;
   return (
     <div className="flex flex-col gap-2">
       <Notice tone={v.tone}>
         <span className="block font-semibold">{v.title}</span>
-        {entry.readable && !entry.resolved && entry.observation && <span className="block">{entry.observation}</span>}
+        {entry.readable && !entry.resolvedAt && entry.observation && <span className="block">{entry.observation}</span>}
         {open && (
           <span className="block">
             {cost === null ? (
@@ -317,7 +349,7 @@ function Result({ entry }: { entry: RoomEntry }) {
           </span>
         )}
       </Notice>
-      {!entry.resolved && entry.devices.length > 0 && (
+      {!entry.resolvedAt && entry.devices.length > 0 && (
         <ul className="divide-y divide-border">
           {entry.devices.map((d, i) => (
             <li key={i} className="flex items-center justify-between gap-3 py-2">

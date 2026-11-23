@@ -56,6 +56,7 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 - [x] Room check: resolved estimates saved to `room_alerts` and shown as **Wasted this month**
 - [x] Room check: the month's alert list is saved (open and resolved, with devices) and restored after refresh
 - [x] Room check: AI marks plugged/unplugged/unknown, a per-device **Plugged in** toggle overrides it, and unplugged devices add no kWh/₱
+- [x] Room check: prefer the stronger Gemini model and prompt for every clearly-on device (multi-device recall)
 - [x] Run `npm run db:migrate` for `room_alerts` (applied)
 - [ ] Room check on a real phone over HTTPS, per [TESTING.md](TESTING.md) **(you)**
 

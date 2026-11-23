@@ -64,12 +64,15 @@ export const RoomExtraction = z.object({
 export type RoomExtraction = z.infer<typeof RoomExtraction>;
 
 export const ROOM_PROMPT =
-  "This is one photo from a phone camera pointed at a room in a Philippine home. List each appliance or light that is clearly " +
-  "switched ON: a lit screen, a glowing bulb or lamp, a fan or aircon visibly running, or an indicator light or display that is on. " +
-  "Ignore daylight, reflections, and anything whose on/off state is not clear. Set people_present=true if any person is visible; " +
-  "never describe or identify people. Use the closest appliance category for each device. For each device set plugged_in=true only if " +
-  "a charging cable or power cord is clearly connected, false only if it is clearly running on battery or visibly unplugged, and null " +
-  "if you cannot tell. Never guess: leave a device out if unsure, and set readable=false if you cannot tell what is on.";
+  "This is one photo from a phone camera pointed at a room in a Philippine home. Scan the whole frame and list EVERY appliance or " +
+  "light that is clearly switched ON, not just the most obvious one. A room can have several at once: a laptop, TV, electric fan, " +
+  "aircon, lights, water dispenser, rice cooker, charger, and so on. A lit screen, a glowing bulb or lamp, a fan or aircon visibly " +
+  "running, or an indicator light or display that is on counts. If you can see a device is on, include it even if it is small or " +
+  "partly in the background. Ignore daylight, reflections, and anything whose on/off state is not clear. Set people_present=true if " +
+  "any person is visible; never describe or identify people. Use the closest appliance category for each device. For each device set " +
+  "plugged_in=true only if a charging cable or power cord is clearly connected, false only if it is clearly running on battery or " +
+  "visibly unplugged, and null if you cannot tell. Never guess: leave a device out if unsure, and set readable=false if you cannot " +
+  "tell what is on.";
 
 export const BILL_PROMPT =
   "This is a photo of a Philippine electric bill (usually Meralco). Read it and fill the schema exactly. " +

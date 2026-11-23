@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   try {
     const [result, bill, appliances] = await Promise.all([
-      extract({ base64: bytes.toString("base64"), mimeType }, RoomExtraction, ROOM_PROMPT),
+      extract({ base64: bytes.toString("base64"), mimeType }, RoomExtraction, ROOM_PROMPT, { preferQuality: true }),
       getLatestBill(viewer.householdId),
       getAppliances(viewer.householdId),
     ]);

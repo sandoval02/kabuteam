@@ -110,12 +110,15 @@ export function providerStep(p: ProviderConfig, schema: z.ZodType): Step {
 }
 
 /** Steps from the server environment (GEMINI_*, ANTHROPIC_*). */
-function envSteps(schema: z.ZodType): Step[] {
+function envSteps(schema: z.ZodType, preferQuality = false): Step[] {
   const gemini = process.env.GEMINI_API_KEY;
   const models = (process.env.GEMINI_MODELS ?? "").split(",").map((m) => m.trim()).filter(Boolean);
+  const ordered = preferQuality
+    ? [...models].sort((a, b) => Number(a.includes("lite")) - Number(b.includes("lite")))
+    : models;
   const anthropic = process.env.ANTHROPIC_API_KEY;
   return [
-    ...(gemini ? models.map((m) => geminiStep(gemini, m)) : []),
+    ...(gemini ? ordered.map((m) => geminiStep(gemini, m)) : []),
     ...(anthropic ? [anthropicStep(anthropic, process.env.ANTHROPIC_MODEL || "claude-haiku-5-5", schema)] : []),
   ];
 }
@@ -152,10 +155,15 @@ function reasonOf(err: unknown): string {
   return (e?.message ?? "error").slice(0, 80);
 }
 
-export async function extract<S extends z.ZodType>(img: Image, schema: S, prompt: string): Promise<ExtractResult<z.infer<S>>> {
+export async function extract<S extends z.ZodType>(
+  img: Image,
+  schema: S,
+  prompt: string,
+  options: { preferQuality?: boolean } = {},
+): Promise<ExtractResult<z.infer<S>>> {
   const jsonSchema = z.toJSONSchema(schema, { target: "draft-7" });
   const attempts: string[] = [];
-  for (const step of [...envSteps(schema), ...(await savedSteps(schema))]) {
+  for (const step of [...envSteps(schema, options.preferQuality), ...(await savedSteps(schema))]) {
     try {
       const text = await withTimeout(step.run(img, prompt, jsonSchema));
       const parsed = schema.safeParse(JSON.parse(text));

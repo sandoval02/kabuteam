@@ -84,6 +84,9 @@ try {
   await visitor.locator("[data-id=bill] a").click();
   await visitor.waitForFunction(() => scrollY === 0 && document.querySelector("[aria-current=step]")?.closest("li")?.dataset.id === "bill");
   ok("Oct 1 in the month strip scrolls to the very top and is selected");
+  // Headless Edge ends the fake camera ~1.5 s after it starts while another browser context is open,
+  // so Room check (below) must run with Resident A's page as the only one, as on a real phone.
+  await visitor.context().close();
 
   step("Resident A signs up through the UI and enters a bill");
   const a = await newPage(browser);

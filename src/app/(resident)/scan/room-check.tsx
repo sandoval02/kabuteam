@@ -105,16 +105,17 @@ export function RoomCheck() {
     setChecking(true);
     setError(null);
     setNextAt(auto && stream ? Date.now() + auto * MINUTE : null);
-    const { data, error } = await postPhoto<{ check: Check }>("/api/extract/room", source);
+    const { data, error } = await postPhoto<{ check: Check | null }>("/api/extract/room", source);
     setChecking(false);
-    if (!data) {
+    const check = data?.check;
+    if (!check) {
       // Stop auto-check on any failure, so an hourly limit or outage is not hit again every few minutes.
-      setError(`${error ?? "Could not check the room."}${auto ? " Auto-check is off." : ""}`);
+      setError(`${error ?? "Could not check the room right now. Try again in a few minutes."}${auto ? " Auto-check is off." : ""}`);
       setMinutesText("");
       setNextAt(null);
       return;
     }
-    setChecks((prev) => [{ ...data.check, at: Date.now() }, ...prev].slice(0, 10));
+    setChecks((prev) => [{ ...check, at: Date.now() }, ...prev].slice(0, 10));
   }
 
   // Every second while the camera is on: countdown and due auto-checks. Leaving the tab or the page turns the camera off.

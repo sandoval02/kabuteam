@@ -19,7 +19,8 @@ export async function POST(request: Request) {
       getLatestBill(viewer.householdId),
       getAppliances(viewer.householdId),
     ]);
-    if (!result.ok) return jsonError(502, "ai_failed", "Could not check the room right now. Try again in a few minutes.");
+    // Every AI step failed (quota, outage): like the bill and sticker routes, a 200 with no result; the screen says so.
+    if (!result.ok) return NextResponse.json({ data: { check: null, servedBy: result.servedBy } });
 
     const room = result.data;
     const rate = bill ? effectiveRate(bill.amount_due, bill.kwh) : null;

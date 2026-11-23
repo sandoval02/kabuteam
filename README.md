@@ -241,7 +241,7 @@ Add the same variables in **Vercel → Project → Settings → Environment Vari
 - **Household:** sign up normally.
 - **Sari-sari store:** sign up as a store with its name; the barangay admin approves it on the admin page.
 - **Barangay admin:** sign up as admin with `ADMIN_SIGNUP_CODE` (or use an email listed in `ADMIN_EMAILS`).
-- **Demo** (after `npm run seed:demo`): `resident@`, `neighbor@`, `admin@`, `store@tipidtayo.test` plus 5 more households, all with `DEMO_PASSWORD`. The 2-minute demo script is in [DEMO.md](DEMO.md).
+- **Demo** (after `npm run seed:demo`): `resident@` (Mang Jun), `neighbor@`, `admin@`, `store@tipidtayo.test` (Aling Nena) plus 18 more households and 3 more store owners, all with `DEMO_PASSWORD`: monthly rounds since June 2026 with vouchers, store payouts and Room check alerts. Each run resets these accounts (and only these), so re-run it after a rehearsal. The 2-minute demo script is in [DEMO.md](DEMO.md).
 
 ## 10. Testing
 

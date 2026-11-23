@@ -1,9 +1,9 @@
 # Demo: Kuryentipid in under 2 minutes
 
 **Before you go on stage**
-- `npm run seed:demo` has been run (demo barangay with 7 households, 1 bill waiting for review).
+- `npm run seed:demo` has been run right before. It resets the demo accounts: 20 households with bills since June 2026, past vouchers and store payouts, Room check alerts this month, 2 bills waiting for review. Run it again after every rehearsal.
 - Two phones (or two browser windows): one signed in as **resident**, one as **store**. Admin on a laptop.
-- Demo accounts: `resident@`, `neighbor@`, `admin@`, `store@tipidtayo.test` (password from the team, not in this repo).
+- Demo accounts: `resident@` (Mang Jun: no October bill and no aircon yet, so the scan and sticker below save; his account number is the sample bill's), `neighbor@` (the mansion), `admin@`, `store@tipidtayo.test` (Aling Nena). Password from the team, not in this repo.
 - Printed sample bill and an appliance sticker ready. If Wi-Fi is bad, use the backup recording.
 - Theme set to light on every device (avatar menu → Theme → Light) so the projector stays readable.
 
@@ -23,7 +23,7 @@
 
 **If a judge asks "a bill is monthly, what about daily?"** Resident phone → **Scan → Room check → Start camera**, point it at a lamp or TV that is on with nobody in view, **Check now**: the phone says "Checking the room", then reads out "May naiwang bukas, walang tao" with the ₱ per hour from Mang Jun's own bill. Let it run a minute so the monitored kWh/₱ climbs in **Alerts this month**, then switch it off and tap **Mark resolved** (or **Check now** again) to freeze the total: the row turns **Resolved**, the phone says "Naayos na.", and **Wasted this month** at the top goes up. Refresh the page to show the list and total are still there. Turn the volume up first. Then the roadmap slide. (Needs a saved bill for the pesos; uses one of the 20 AI reads per hour.)
 
-**If a step fails live:** scanning falls back to typing the numbers (show that as a feature: "the AI suggests, the resident confirms"). The flagged bill (Bahay #068, ₱3/kWh) is already waiting in the admin queue if you need to show the review step.
+**If a step fails live:** scanning falls back to typing the numbers (show that as a feature: "the AI suggests, the resident confirms"). The flagged bill (Bahay #068, ₱3/kWh) is already waiting in the admin queue if you need to show the review step, next to a copy of a neighbor's bill (another household's account number).
 
 ## Panel questions about Room check
 

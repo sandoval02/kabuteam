@@ -29,7 +29,7 @@
 - Google button on the sign-in page with a Google account that has no Kuryentipid account → told to create one first
 - Admin → Photo reading (AI): a wrong key fails with a readable log and Add stays locked; a working key passes, Add unlocks, and editing any field locks it again until a new test
 - Homepage month strip: after scrolling down, Oct 1 returns to the very top and is highlighted
-- Store payouts (seeded demo has one confirmed and one pending payout):
+- Store payouts (the seeded demo has confirmed, pending and disputed payouts, and an unpaid redemption at Mang Ramon's store):
   1. Issue 2 vouchers; redeem both at a store → admin sees Unpaid ₱100.
   2. Record the payment → Unpaid ₱0 and a pending payout on both sides.
   3. Store taps "I received it" → both sides show Confirmed.

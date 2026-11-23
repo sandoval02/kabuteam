@@ -1,8 +1,8 @@
-# <Project Name>
+# TipidTayo
 
-> One sentence: what it does and for whom.
+> Your barangay's fair energy-saving challenge. Scan your Meralco bill and your appliance stickers to see what each appliance really costs you, then compete with your neighbors on **% saved**, not raw kWh, for badges and sari-sari store vouchers.
 
-**Status:** Pre-flight — no feature code until every box in [Pre-Flight Checklist](#pre-flight-checklist) is ticked.
+**Status:** Pre-flight complete. Ready to build, starting at [TASKS.md](TASKS.md) Phase 0. Assign owners in §2 first.
 
 ---
 
@@ -10,16 +10,16 @@
 
 No coding begins until all of these are done. AI agents must refuse feature work while any box is unchecked (see [AGENTS.md](AGENTS.md)).
 
-- [ ] Problem and target users are clear (§1)
-- [ ] MVP features are defined, out-of-scope list written (§1)
-- [ ] Tech stack is selected (§3)
-- [ ] Design system is documented ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md))
-- [ ] Anti-slop rules are established ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md#anti-slop-rules))
-- [ ] Required skills and integrations are identified (§2)
-- [ ] Architecture is planned ([ARCHITECTURE.md](ARCHITECTURE.md))
-- [ ] Project structure is agreed upon ([ARCHITECTURE.md](ARCHITECTURE.md#folder-structure))
-- [ ] AI agent instructions are ready ([AGENTS.md](AGENTS.md))
-- [ ] Initial task breakdown is complete ([TASKS.md](TASKS.md))
+- [x] Problem and target users are clear (§1)
+- [x] MVP features are defined, out-of-scope list written (§1)
+- [x] Tech stack is selected (§3)
+- [x] Design system is documented ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md))
+- [x] Anti-slop rules are established ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md#anti-slop-rules))
+- [x] Required skills and integrations are identified (§2)
+- [x] Architecture is planned ([ARCHITECTURE.md](ARCHITECTURE.md))
+- [x] Project structure is agreed upon ([ARCHITECTURE.md](ARCHITECTURE.md#folder-structure))
+- [x] AI agent instructions are ready ([AGENTS.md](AGENTS.md))
+- [x] Initial task breakdown is complete ([TASKS.md](TASKS.md))
 
 ---
 
@@ -27,64 +27,107 @@ No coding begins until all of these are done. AI agents must refuse feature work
 
 | | |
 |---|---|
-| **Problem** | <!-- The specific pain, in one or two sentences. Who feels it, how often. --> |
-| **Target users** | <!-- A concrete person, not "everyone". --> |
-| **Value proposition** | <!-- Why this beats what they do today. --> |
-| **Hackathon theme** | <!-- --> |
-| **Judging criteria** | <!-- List each criterion and how the demo proves it. --> |
+| **Problem** | An electric bill is one number. Households can't cut what they can't see, so they switch off lights (which barely matter) while an old ref or non-inverter aircon eats most of the bill. And even people who do save have no reason to keep at it: no feedback, no recognition, no reward. Community saving drives that rank by raw kWh are unfair, because a big house can "save" more kWh by accident than a small house can use in a month. |
+| **Target users** | **Residents** of a barangay who pay their own Meralco bill (main user). **Barangay officials** who run the challenge and review flagged bills. **Sari-sari store owners** who redeem vouchers. |
+| **Value proposition** | No smart meter, no hardware. A phone camera turns the bill into a line-by-line receipt showing *what* to fix, and a fair barangay ranking gives people a reason to come back and keep saving every month. |
+| **Hackathon theme** | **SDG 7: Affordable and Clean Energy.** Target 7.1 (affordable access) and 7.3 (energy efficiency). Also touches SDG 11 (sustainable communities). |
+| **Judging criteria** | Technical quality, functionality, innovation, originality, presentation/demo — 20% each. |
+
+### The twists
+
+1. **Fair scoring.** You compete against your own past usage, not your neighbors' kWh. A small house can beat a mansion.
+2. **The receipt has to add up.** Per-appliance estimates are calibrated so they sum to the kWh on the real bill. Usage your appliances can't explain shows up as an **"Unaccounted" line**: a forgotten appliance, a failing ref seal, a leak, or a meter worth questioning.
+
+### Fair score rules
+
+| Rule | Why |
+|---|---|
+| **Baseline = same month last year**, read from the 12-month usage history printed on the bill. If that's missing, use the average of the last 3 months on the bill. | Removes the summer (April–May) penalty, and you can't inflate a past month to game it. |
+| **Savings % = (baseline − current) ÷ baseline**, capped at 30%. | Stops an empty house during a vacation from winning. |
+| **Low-usage floor:** households at ≤ 100 kWh/month score at least 15% and get the "Efficient Already" badge. | Households already using very little have nothing left to cut, so a pure % rule would punish the poorest. |
+| **One account number = one household.** | Prevents entering the same bill twice. |
+| **Plausibility check:** amount ÷ kWh must fall in a believable ₱/kWh range; account number must match the household's previous bills. Failures go to barangay review instead of the leaderboard. | Catches someone uploading a neighbor's bill or an edited photo. |
+
+### How it scores (20% each)
+
+| Criterion | How the demo proves it |
+|---|---|
+| Technical quality | Vision extraction from two kinds of document (bill, appliance sticker); reconciliation against the bill total; fair-score rules with anti-cheat checks. |
+| Functionality | The full loop works live: scan → receipt → leaderboard → voucher redeemed at a store. No mocked screens. |
+| Innovation | Fair % scoring tied to the bill's own history, and the "Unaccounted" line. |
+| Originality | A barangay + sari-sari reward loop: local, social, and built around how Filipino communities actually work. |
+| Presentation and demo | "Mang Jun's small house beat the mansion across the street. He saved 22%, got a ₱50 voucher at Aling Nena's store, and the app told him exactly which appliance to fix." |
 
 ### MVP (must work at demo time)
 
-1. <!-- The one user journey the demo shows end to end. -->
-2.
-3.
+1. **Scan the bill:** AI extracts account number, billing period, kWh, amount due, and the 12-month usage history. Every field is editable before confirming. Effective rate = amount ÷ kWh (Meralco bills include generation, transmission and other charges, so kWh × a single rate is wrong).
+2. **Scan appliances:** photograph each appliance's nameplate sticker; AI extracts type and wattage. If unreadable, pick from a list with typical wattage. Usage hours pre-filled and editable.
+3. **Itemized receipt:** per-appliance kWh and ₱, reconciled to the bill, sorted by cost, with the "Unaccounted" line when the gap is large. The top 3 lines each show one concrete swap with monthly saving and payback months.
+4. **Barangay leaderboard:** monthly ranking by fair score (rules above).
+5. **Badges:** First Scan, 10% Club, Efficient Already, Top 3 in Barangay.
+6. **Vouchers:** monthly top savers receive a single-use QR voucher. The store owner's page scans or enters the code and marks it redeemed; a used code can't be redeemed again.
+7. **Barangay admin page:** review flagged bills (approve/reject), set the monthly voucher count and amount, add partner stores.
 
 ### Out of scope
 
-- <!-- Anything tempting that is NOT being built. Writing it down is what stops scope creep. -->
+- Meter camera / real-time monitoring (roadmap: phone camera on the meter for daily feedback, "Meter-Verified" badge, water leak alerts).
+- Payments or actual money transfer; the voucher is honored by the partner store.
+- Multiple barangays or cross-barangay rankings.
+- Bill formats other than Meralco.
+- SMS/push notifications.
+- Native mobile app (responsive web app; the phone camera works through the browser).
 
 ## 2. Required skills
 
-Delete rows that do not apply. Every remaining row needs an owner.
+All rows apply. Fill in an owner for each; one person can own several.
 
-| Skill | Covers | Owner |
+| Skill | What it means here | Owner |
 |---|---|---|
-| UI/UX design | User flows, usability, visual hierarchy | |
-| Frontend | Components, layouts, responsive UI | |
-| Backend | APIs, business logic | |
-| Database | Schema, relationships, queries | |
-| AI integration | Prompts, model APIs, tool calling | |
-| Authentication | Login, permissions, security | |
-| Git/GitHub | Branching, commits, collaboration | |
-| Testing | Functional and edge-case testing | |
-| Deployment | Hosting, environment configuration | |
-| Accessibility | Keyboard navigation, contrast, semantics | |
+| UI/UX design | Scan → receipt → ranking flow; receipt layout; DESIGN_SYSTEM.md | |
+| Frontend | Next.js screens, PhotoCapture, receipt, leaderboard, voucher QR | |
+| Backend | Server Actions, extraction routes, scoring logic | |
+| Database | Supabase schema, constraints, RLS policies, leaderboard view | |
+| AI integration | Claude vision extraction with Zod schemas; testing on real Meralco bills and stickers | |
+| Authentication | Supabase email + password login (accounts created server-side, already confirmed), three roles | |
+| Git/GitHub | Branching and merges per CONTRIBUTING.md | |
+| Testing | Scoring unit checks; TESTING.md run-through | |
+| Deployment | Vercel + Supabase project, env vars | |
+| Accessibility | Contrast, focus, labels, 44px targets | |
+| Pitch/demo | Demo script, real bill + stickers, backup recording | |
 
 ## 3. Technology stack
 
-Every entry needs a one-line reason. No dependency gets added later without one.
+No dependency gets added beyond this list without a written reason.
 
 | Layer | Choice | Why |
 |---|---|---|
-| Frontend framework | | |
-| Backend framework | | |
-| Database | | |
-| Auth provider | | |
-| AI/LLM provider | | |
-| UI component library | | |
-| Styling | | |
-| Deployment | | |
-| External APIs | | |
+| Frontend + backend | **Next.js** (App Router, TypeScript strict) | Screens and server code in one project and one deploy; server code keeps the AI key secret |
+| Database | **Supabase Postgres** | Real SQL with constraints (unique account number, single-use voucher) and Row Level Security for the three roles |
+| Auth | **Supabase Auth** (email + password) | Comes with the database. Accounts are created server-side as confirmed, because Supabase's built-in mailer allows only a few emails per hour, which would break a live demo |
+| File storage | **Supabase Storage** (private bucket) | Bill photos stay private to the owner and their barangay admin |
+| AI | **Gemini** via `@google/genai` (free tier) in a fallback chain: Flash → Flash-Lite → optional **Claude Haiku 5.5** (`@anthropic-ai/sdk`) → manual entry. Structured JSON validated with Zod | Free for the hackathon; if one model hits its quota or fails, the next catches it, and manual entry means scanning never dead-ends |
+| Validation | **Zod** | One schema validates both AI output and user input |
+| Styling | **Tailwind CSS** with tokens from `src/styles/tokens.css` | Fast to build; tokens enforce the design system |
+| UI components | Own small primitives in `components/ui.tsx` (Button, Field, SelectField, Notice) | Only a handful were needed; shadcn was allowed but not required |
+| Landing page interaction | **Three.js** via `@react-three/fiber` + `drei` (3D barangay showing the fair score), **GSAP** ScrollTrigger (receipt prints on scroll), **Motion** (fair-score slider) | Requested by the project owner. Each one demonstrates a real mechanic; all respect `prefers-reduced-motion`; loaded only on the landing page |
+| Icons | **lucide-react** | One consistent SVG set |
+| QR | **qrcode** (generate); store page uses a typed code or the phone's camera via **@zxing/browser** | Small, single-purpose libraries |
+| Deployment | **Vercel** + Supabase cloud (free tiers) | Zero-config Next.js hosting |
+| External APIs | Google Gemini API; Anthropic API (optional fallback) | |
 
 ## 4. Getting started
 
 ```bash
-# Fill in once the stack is chosen
-git clone <repo>
-cp .env.example .env   # then fill in values
-# install
-# run
+git clone <repo> && cd tipidtayo
+cp .env.example .env.local      # fill in values (see comments in the file)
+npm install
+npm run db:migrate              # apply supabase/migrations (needs SUPABASE_DB_URL)
+npm run dev                     # http://localhost:3000
+npm test                        # scoring unit tests
+npm run e2e                     # full demo loop in Microsoft Edge (dev server must be running)
 ```
+
+The first admin: put their email in `ADMIN_EMAILS` before they create their account. Store owners create an account, then the admin links them on the admin page.
 
 ## 5. Execution workflow
 

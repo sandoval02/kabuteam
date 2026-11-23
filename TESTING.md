@@ -10,6 +10,7 @@
 - [ ] Loading, empty and error states appear correctly (throttle network, use an empty account, kill an API)
 - [ ] No secrets in the repo or client bundle (search the build output for key prefixes)
 - [ ] No placeholder content
+- [ ] `npx impeccable detect src/` and `npx impeccable detect http://localhost:3000` report no findings (or each remaining one is waived with a reason)
 - [ ] Keyboard: every action reachable with Tab/Enter/Esc, focus visible
 - [ ] Contrast meets WCAG AA
 - [ ] README setup steps work on a fresh clone
@@ -24,4 +25,5 @@
 
 ## Automated tests
 
-<!-- Only for logic that would hurt if it broke (auth checks, data transforms, money). Note the command to run them here. -->
+- `npm test`: scoring rules (baseline, fair score, cap, low-usage floor, reconciliation, plausibility, swap tips).
+- `npm run e2e`: with `npm run dev` running, drives Microsoft Edge through the whole demo loop with throwaway accounts (landing, sign-up, bill entry, appliances, receipt, a real Gemini sticker scan, flagging, ranking order, admin review, vouchers, single-use redeem, role checks) and fails on console errors. Deletes its accounts afterwards.

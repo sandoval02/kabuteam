@@ -1,0 +1,156 @@
+import { requireViewer } from "@/lib/auth";
+import { getLeaderboard, monthLabel } from "@/lib/data";
+import { createAdminClient } from "@/lib/supabase/server";
+import { AppHeader } from "@/components/app-header";
+import { ActionForm } from "@/components/action-form";
+import { SubmitButton } from "@/components/submit-button";
+import { Field, Notice, PageTitle, Section, SelectField, kwh, peso } from "@/components/ui";
+import { effectiveRate } from "@/lib/scoring";
+import { addStore, issueVouchers, renameBarangay, reviewBill } from "./actions";
+
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ reviewed?: string }> }) {
+  const viewer = await requireViewer("admin");
+  const { reviewed } = await searchParams;
+  const admin = createAdminClient();
+
+  const [{ data: flaggedRaw }, { data: stores }, board] = await Promise.all([
+    admin
+      .from("bills")
+      .select("id, score_month, kwh, amount_due, baseline_kwh, flag_reasons, photo_path, households!inner(profiles!inner(household_label, barangay_id))")
+      .eq("status", "flagged")
+      .eq("households.profiles.barangay_id", viewer.barangayId)
+      .order("created_at"),
+    admin.from("stores").select("id, name").eq("barangay_id", viewer.barangayId).order("name"),
+    getLeaderboard(viewer.barangayId),
+  ]);
+
+  const flagged = await Promise.all(
+    (flaggedRaw ?? []).map(async (b) => ({
+      ...b,
+      label: (b.households as unknown as { profiles: { household_label: string } }).profiles.household_label,
+      photoUrl: b.photo_path
+        ? (await admin.storage.from("bill-photos").createSignedUrl(b.photo_path, 600)).data?.signedUrl ?? null
+        : null,
+    })),
+  );
+
+  return (
+    <div className="mx-auto min-h-dvh max-w-240">
+      <AppHeader title="Barangay admin" sub={viewer.barangayName} />
+      <main className="px-4 pb-12 pt-2">
+        <PageTitle sub="Review flagged bills, reward top savers, and manage partner stores.">Admin</PageTitle>
+
+        <Section title={`Bills to review (${flagged.length})`}>
+          {reviewed && (
+            <div className="mb-3">
+              <Notice tone="success">
+                {reviewed === "approve" ? "Bill approved and added to the ranking." : "Bill rejected. It stays off the ranking."}
+              </Notice>
+            </div>
+          )}
+          {flagged.length === 0 ? (
+            <Notice tone="info">No bills to review.</Notice>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {flagged.map((b) => (
+                <li key={b.id} className="rounded-md border border-border bg-surface p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="font-semibold">
+                      {b.label} · {monthLabel(b.score_month)}
+                    </p>
+                    <p className="num text-small text-muted">
+                      {kwh(Number(b.kwh))} · {peso(Number(b.amount_due))} · {peso(effectiveRate(Number(b.amount_due), Number(b.kwh)))}/kWh
+                      {b.baseline_kwh !== null && ` · last year ${kwh(Number(b.baseline_kwh))}`}
+                    </p>
+                  </div>
+                  <ul className="mt-2 list-disc pl-5 text-small text-warning">
+                    {b.flag_reasons.map((r: string) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                  {b.photoUrl ? (
+                    <a href={b.photoUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-small font-semibold text-primary underline">
+                      Open bill photo
+                    </a>
+                  ) : (
+                    <p className="mt-2 text-small text-muted">Typed in by hand, no photo.</p>
+                  )}
+                  <ActionForm action={reviewBill} className="mt-3 flex flex-col gap-2">
+                    <input type="hidden" name="id" value={b.id} />
+                    <div className="flex gap-2">
+                      <SubmitButton name="decision" value="approve" pendingText="Saving…">
+                        Approve
+                      </SubmitButton>
+                      <SubmitButton name="decision" value="reject" variant="secondary" pendingText="Saving…">
+                        Reject
+                      </SubmitButton>
+                    </div>
+                  </ActionForm>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        <div className="grid gap-8 md:grid-cols-2">
+          <Section title="Reward top savers">
+            <p className="mb-3 text-small text-muted">
+              {board.month
+                ? `${monthLabel(board.month)}: ${board.rows.length} household${board.rows.length === 1 ? "" : "s"} ranked. Vouchers go to the highest scores that don't have one yet.`
+                : "No scored bills yet."}
+            </p>
+            {stores && stores.length > 0 ? (
+              <ActionForm action={issueVouchers}>
+                <SelectField label="Store" name="store_id" required>
+                  {stores.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </SelectField>
+                <div className="grid grid-cols-3 gap-3">
+                  <Field label="Vouchers" name="count" type="number" min="1" max="50" defaultValue="3" required />
+                  <Field label="Amount (₱)" name="amount" type="number" min="1" max="5000" defaultValue="50" required />
+                  <Field label="Valid (days)" name="days" type="number" min="1" max="90" defaultValue="30" required />
+                </div>
+                <SubmitButton pendingText="Issuing…" disabled={!board.month}>
+                  Issue vouchers
+                </SubmitButton>
+              </ActionForm>
+            ) : (
+              <Notice tone="info">Add a partner store first.</Notice>
+            )}
+          </Section>
+
+          <Section title="Partner stores">
+            {stores && stores.length > 0 && (
+              <ul className="mb-4 divide-y divide-border rounded-md border border-border bg-surface">
+                {stores.map((s) => (
+                  <li key={s.id} className="px-4 py-3">
+                    {s.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ActionForm action={addStore}>
+              <Field label="Store name" id="store_name" name="name" required maxLength={60} />
+              <Field label="Owner's account email" name="email" type="email" required hint="The owner must create an account first." />
+              <SubmitButton variant="secondary" pendingText="Adding…">
+                Add store
+              </SubmitButton>
+            </ActionForm>
+          </Section>
+        </div>
+
+        <Section title="Barangay">
+          <ActionForm action={renameBarangay} className="flex flex-col gap-4 md:max-w-md">
+            <Field label="Barangay name" id="barangay_name" name="name" defaultValue={viewer.barangayName} required maxLength={80} />
+            <SubmitButton variant="secondary" pendingText="Saving…">
+              Save name
+            </SubmitButton>
+          </ActionForm>
+        </Section>
+      </main>
+    </div>
+  );
+}

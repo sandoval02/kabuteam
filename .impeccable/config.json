@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-11-23T04:35:49.770Z",
+        "reason": "Requested by the project owner (2026-11-23)"
+      }
+    ]
+  }
+}

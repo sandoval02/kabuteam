@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* `dark:` follows the app theme: an explicit choice (data-theme) or, on "System", the OS setting. */
+@custom-variant dark {
+  :root[data-theme="dark"] & {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) & {
+      @slot;
+    }
+  }
+}
+
 /* Design tokens: the single source of truth (DESIGN_SYSTEM.md). Light mode only by decision. */
 @theme {
   /* Neobank-inspired light theme on the Tugon system. 60 / 30 / 10:

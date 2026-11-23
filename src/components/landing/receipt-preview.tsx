@@ -2,11 +2,11 @@ import { ReceiptText, TriangleAlert } from "lucide-react";
 import { peso } from "@/components/ui";
 import { EXAMPLE_BILL } from "./example-data";
 
-/** Compact receipt proof for the hero. The full explanation lives in the next section. */
-export function ReceiptPreview() {
+/** Compact example receipt (clearly captioned as an example). Used on the login page. */
+export function ReceiptPreview({ className = "" }: { className?: string }) {
   return (
-    <figure className="mt-8 max-w-sm">
-      <div className="rounded-md bg-surface p-4 shadow-receipt">
+    <figure className={className}>
+      <div className="rounded-md bg-surface p-4 text-text shadow-receipt">
         <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-border-strong pb-2">
           <p className="flex items-center gap-2 text-small font-semibold">
             <ReceiptText size={16} strokeWidth={1.75} aria-hidden />
@@ -37,6 +37,7 @@ export function ReceiptPreview() {
           <span className="num font-semibold">{peso(EXAMPLE_BILL.totalPesos)}</span>
         </div>
       </div>
+      <figcaption className="mt-2 text-small text-muted">Example: {EXAMPLE_BILL.household.replace("BAHAY", "Bahay")}, {EXAMPLE_BILL.period}</figcaption>
     </figure>
   );
 }

@@ -4,7 +4,7 @@ import { Ticket } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getLeaderboard, monthLabel } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/server";
-import { CardSection, PageHero, buttonStyles, pct, peso } from "@/components/ui";
+import { buttonStyles, pct, peso } from "@/components/ui";
 
 export default async function VouchersPage() {
   const viewer = await requireViewer("resident");
@@ -26,26 +26,42 @@ export default async function VouchersPage() {
     })),
   );
 
+  const active = vouchers.filter((v) => v.state === "active");
+  const activeTotal = active.reduce((sum, v) => sum + Number(v.amount), 0);
+  const ranked = myRank >= 0 && board.month !== null;
+
   return (
     <>
-      <PageHero icon={Ticket} title="Vouchers" sub="Show the QR code at the partner store." />
-      {vouchers.length === 0 ? (
-        <CardSection title="No vouchers yet" icon={Ticket}>
-          <p className="text-muted">
-            Each month the barangay gives vouchers at partner sari-sari stores to its top savers.
-            {myRank >= 0 && board.month && (
-              <>
-                {" "}
-                For {monthLabel(board.month)} you are <strong className="text-text">#{myRank + 1} of {board.rows.length}</strong> at{" "}
-                <span className="num text-primary">{pct(board.rows[myRank].score)}</span>.
-              </>
-            )}
+      <h1 className="sr-only">Vouchers</h1>
+      {/* Lime hero with real numbers: what's ready to use now, and where this month's ranking stands. */}
+      <section className="mb-3 rounded-lg bg-lime p-5 text-on-lime">
+        {active.length > 0 ? (
+          <>
+            <p className="text-small">Ready to use</p>
+            <p className="num text-[2.25rem] font-semibold leading-tight">{peso(activeTotal)}</p>
+            <p className="text-small">
+              {active.length} active {active.length === 1 ? "voucher" : "vouchers"}. Show the QR code at the partner store.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="font-display text-h2 font-semibold">No vouchers ready</p>
+            <p className="mt-1 text-small">Each month the barangay gives vouchers at partner sari-sari stores to its top savers.</p>
+          </>
+        )}
+        {ranked && (
+          <p className="mt-3 text-small">
+            {monthLabel(board.month!)}: you&apos;re <strong className="num">#{myRank + 1}</strong> of {board.rows.length} at{" "}
+            <strong className="num">{pct(board.rows[myRank].score)}</strong>.
           </p>
-          <Link href="/ranking" className={`${buttonStyles.secondary} mt-4`}>
+        )}
+        {active.length === 0 && (
+          <Link href="/ranking" className={`${buttonStyles.primary} mt-4 w-full`}>
             See the ranking
           </Link>
-        </CardSection>
-      ) : (
+        )}
+      </section>
+      {vouchers.length > 0 && (
         <ul className="flex flex-col gap-3">
           {vouchers.map((v) => (
             <li

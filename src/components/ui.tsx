@@ -124,36 +124,6 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <span aria-hidden className={`block animate-pulse bg-border motion-reduce:animate-none ${radius} ${className}`} />;
 }
 
-/** Skeleton matching PageHero + CardSection pages. `cards` = number of rows per card. */
-export function PageSkeleton({ cards = [3] }: { cards?: number[] }) {
-  return (
-    <div role="status">
-      <span className="sr-only">Loading…</span>
-      <div className="mb-5 flex flex-col items-center gap-2">
-        <Skeleton className="h-24 w-24 rounded-full" />
-        <Skeleton className="mt-1 h-7 w-32" />
-        <Skeleton className="h-4 w-48" />
-      </div>
-      {cards.map((rows, i) => (
-        <div key={i} className="mb-3 rounded-md bg-surface p-3.5 shadow-receipt">
-          <Skeleton className="mb-3 h-4 w-28" />
-          <div className="flex flex-col gap-3">
-            {Array.from({ length: rows }, (_, r) => (
-              <div key={r} className="flex items-center gap-3">
-                <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <Skeleton className="h-3.5 w-2/3" />
-                  <Skeleton className="h-3 w-1/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** White soft-shadow card, the default container. */
 export function Card({ className = "", children, ...props }: ComponentProps<"div">) {
   return (

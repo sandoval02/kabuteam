@@ -30,7 +30,7 @@ export function PhotoCapture({
   label: string;
   onPhoto: (file: File) => void;
   disabled?: boolean;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "lime";
 }) {
   const input = useRef<HTMLInputElement>(null);
   return (

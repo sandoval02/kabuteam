@@ -2,9 +2,11 @@
 
 import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
 import { Camera, ScanLine } from "lucide-react";
+import { toast } from "sonner";
 import { PhotoCapture, postPhoto } from "@/components/photo-capture";
 import { Button, CheckField, Field, Notice, peso } from "@/components/ui";
 import {
+  addMonthWaste,
   costPerHour,
   deviceLabels,
   durationLabel,
@@ -12,9 +14,11 @@ import {
   monitoredMs,
   nextChecks,
   verdict,
+  type MonthWaste,
   type RoomCheck,
   type RoomEntry,
 } from "@/lib/room-check";
+import { saveRoomWaste } from "./room-actions";
 
 const MINUTE = 60_000;
 // The server's 20-per-hour AI cap is the real limit; below 3 minutes it runs out before the hour does.
@@ -66,7 +70,7 @@ const nfKwh = new Intl.NumberFormat("en-PH", { minimumFractionDigits: 2, maximum
 const kwhSmall = (n: number) => `${nfKwh.format(n)} kWh`;
 
 /** Live camera (or a photo) → what was left on with nobody there, in pesos per hour. Photos are never saved. */
-export function RoomCheck() {
+export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: MonthWaste }) {
   const canStream = useSyncExternalStore(
     () => () => {},
     () => !!navigator.mediaDevices?.getUserMedia,
@@ -79,6 +83,8 @@ export function RoomCheck() {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checks, setChecks] = useState<RoomEntry[]>([]); // this visit only, newest first
+  const [monthWaste, setMonthWaste] = useState(initialMonthWaste);
+  const savedAlerts = useRef(new Set<number>());
   const [voice, setVoice] = useState(true); // read "Checking the room." and each result aloud
   const [minutesText, setMinutesText] = useState(""); // auto-check interval as typed; empty = off
   const auto = toMinutes(minutesText);
@@ -146,7 +152,7 @@ export function RoomCheck() {
   }
 
   function resolveAlert(at: number) {
-    const resolvedAt = Math.max(now, at);
+    const resolvedAt = Math.max(now, at + 1);
     setChecks((prev) => prev.map((entry) => (entry.at === at && !entry.resolvedAt ? { ...entry, resolvedAt } : entry)));
     if (voice) say("Naayos na.");
   }
@@ -175,6 +181,24 @@ export function RoomCheck() {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [hasOpenAlerts, stream]);
+
+  useEffect(() => {
+    for (const entry of checks) {
+      if (!entry.resolvedAt || savedAlerts.current.has(entry.at)) continue;
+      savedAlerts.current.add(entry.at);
+      const elapsed = monitoredMs(entry, entry.resolvedAt);
+      const energy = monitoredConsumption(entry, elapsed);
+      void saveRoomWaste({
+        startedAt: new Date(entry.at).toISOString(),
+        resolvedAt: new Date(entry.resolvedAt).toISOString(),
+        kwh: energy.kwh,
+        pesos: energy.pesos,
+      }).then((result) => {
+        if (result.ok) setMonthWaste((total) => addMonthWaste(total, energy));
+        else toast.error(result.error);
+      });
+    }
+  }, [checks]);
 
   const live = stream !== null;
   const result = checks[0] && <Result entry={checks[0]} />;
@@ -239,6 +263,14 @@ export function RoomCheck() {
 
   return (
     <div ref={root} className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3 rounded-sm bg-surface-2 px-3 py-2.5 text-small">
+        <span className="text-muted">Nasayang this month</span>
+        <span className="num font-semibold">
+          {kwhSmall(monthWaste.kwh)}
+          {monthWaste.pesos !== null && ` · ${peso(monthWaste.pesos)}`}
+        </span>
+      </div>
+
       {!live && (
         <>
           <p className="text-small text-muted">
@@ -294,10 +326,10 @@ export function RoomCheck() {
             error={minutesText && !auto ? `Use a whole number from ${MIN_MINUTES} to ${MAX_MINUTES}.` : undefined}
             hint={
               auto && secondsLeft !== null
-                ? `Next check in ${mmss(secondsLeft)}. Keep this page open and the screen on.${
+                ? `Next check in ${mmss(secondsLeft)}. Keep this page open and the screen on; each check looks for a device that was switched off.${
                     auto < CAP_SAFE_MINUTES ? ` Faster than every ${CAP_SAFE_MINUTES} minutes uses up the 20 checks an hour, then auto-check stops.` : ""
                   }`
-                : "Leave empty to check only when you tap. You get 20 AI checks an hour."
+                : "Off: the app checks only when you tap Check now. Set 5–15 minutes to let it see when a device is switched off. You get 20 AI checks an hour."
             }
           />
           {voiceToggle}

@@ -21,7 +21,7 @@
 | 1:40 | "Aling Nena scans it. Accepted. Try again: already used." | Store phone → redeem, then redeem the same code again. |
 | 1:50 | "Fair, verified, local. SDG 7, one barangay at a time." | End on the landing page. |
 
-**If a judge asks "a bill is monthly, what about daily?"** Resident phone → **Scan → Room check → Start camera**, point it at a lamp or TV that is on with nobody in view, **Check now**: the phone says "Checking the room", then reads out "May naiwang bukas, walang tao" with the ₱ per hour from Mang Jun's own bill. Let it run a minute so the monitored kWh/₱ climbs in **Alerts this visit**, then switch it off and tap **Naayos na ito** (or **Check now** again) to freeze the total and show the alert turn into **Naayos na.** Turn the volume up first. Then the roadmap slide. (Needs a saved bill for the pesos; uses one of the 20 AI reads per hour.)
+**If a judge asks "a bill is monthly, what about daily?"** Resident phone → **Scan → Room check → Start camera**, point it at a lamp or TV that is on with nobody in view, **Check now**: the phone says "Checking the room", then reads out "May naiwang bukas, walang tao" with the ₱ per hour from Mang Jun's own bill. Let it run a minute so the monitored kWh/₱ climbs in **Alerts this visit**, then switch it off and tap **Naayos na ito** (or **Check now** again) to freeze the total, show the alert turn into **Naayos na.**, and add it to **Nasayang this month** at the top. Turn the volume up first. Then the roadmap slide. (Needs a saved bill for the pesos; uses one of the 20 AI reads per hour.)
 
 **If a step fails live:** scanning falls back to typing the numbers (show that as a feature: "the AI suggests, the resident confirms"). The flagged bill (Bahay #068, ₱3/kWh) is already waiting in the admin queue if you need to show the review step.
 
@@ -31,7 +31,7 @@ Answer with the number or the rule first.
 
 | Question | Answer |
 |---|---|
-| Isn't this a CCTV inside people's homes? | No recording. Each check sends one frame to the AI and it is discarded; nothing is saved in storage or the database. Only that resident sees the result, and nothing reaches the ranking or the admin. The AI is asked whether someone is there, never who. |
+| Isn't this a CCTV inside people's homes? | No recording. Each check sends one frame to the AI and it is discarded; no photo is saved. A resolved alert saves only its start/end time, estimated kWh and ₱ for that household's own monthly total; no people data, and nothing reaches the ranking or the admin. The AI is asked whether someone is there, never who. |
 | What does it cost to run? | The same free AI chain as the bill. Every check counts toward the 20 AI reads per account per hour, so auto-check can never run past that; any failure turns it off. |
 | How do you avoid false alarms? | The AI lists only what is clearly on and says "unclear" instead of guessing. Whether it is waste is decided by our code, not the AI: something on **and** nobody in view. |
 | Where do the pesos per hour come from? | The household's own bill rate (amount ÷ kWh) times the appliance's watts: from their own scanned sticker if they have one, else a typical value. A 100 W TV at ₱12.56/kWh is ₱1.26 an hour. |

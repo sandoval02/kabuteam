@@ -12,6 +12,8 @@ export type RoomEntry = RoomCheck & { at: number; resolvedAt: number | null };
 
 export type RoomVerdict = { tone: "success" | "warning" | "info"; title: string };
 
+export type MonthWaste = { kwh: number; pesos: number | null };
+
 export function deviceLabels(c: RoomCheck) {
   return [...new Set(c.devices.map((d) => d.label))].join(", ");
 }
@@ -63,6 +65,13 @@ export function monitoredConsumption(entry: RoomCheck, ms: number): { kwh: numbe
   const kwh = (entry.devices.reduce((sum, d) => sum + d.watts, 0) / 1000) * hours;
   const perHour = costPerHour(entry);
   return { kwh, pesos: perHour === null ? null : perHour * hours };
+}
+
+export function addMonthWaste(total: MonthWaste, energy: MonthWaste): MonthWaste {
+  return {
+    kwh: total.kwh + energy.kwh,
+    pesos: energy.pesos === null ? total.pesos : (total.pesos ?? 0) + energy.pesos,
+  };
 }
 
 export function durationLabel(ms: number): string {

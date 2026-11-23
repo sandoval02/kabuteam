@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  addMonthWaste,
   costPerHour,
   durationLabel,
   monitoredConsumption,
@@ -114,6 +115,13 @@ test("monitored consumption has no pesos without a bill rate", () => {
   const { kwh, pesos } = monitoredConsumption(waste([device("computer", "Computer", null, 150)]), 3_600_000);
   assert.ok(Math.abs(kwh - 0.15) < 1e-9);
   assert.equal(pesos, null);
+});
+
+test("monthly waste adds kWh and priced pesos, keeping an unknown price unknown", () => {
+  assert.deepEqual(addMonthWaste({ kwh: 0.1, pesos: null }, { kwh: 0.15, pesos: null }), { kwh: 0.25, pesos: null });
+  assert.deepEqual(addMonthWaste({ kwh: 0.1, pesos: 1.26 }, { kwh: 0.15, pesos: null }), { kwh: 0.25, pesos: 1.26 });
+  assert.deepEqual(addMonthWaste({ kwh: 0.1, pesos: null }, { kwh: 0.15, pesos: 1.88 }), { kwh: 0.25, pesos: 1.88 });
+  assert.deepEqual(addMonthWaste({ kwh: 0.1, pesos: 1 }, { kwh: 0.15, pesos: 2 }), { kwh: 0.25, pesos: 3 });
 });
 
 test("duration label: under a minute, minutes, hours", () => {

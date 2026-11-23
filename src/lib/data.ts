@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
 import { earnedBadges, fairScore, type HistoryEntry } from "@/lib/scoring";
+import type { MonthWaste } from "@/lib/room-check";
 
 // All reads/writes here use the admin client, so callers MUST have checked the viewer first.
 
@@ -54,6 +55,33 @@ export async function getAppliances(householdId: string): Promise<ApplianceRow[]
     .order("created_at");
   assertOk("appliances", error);
   return (data ?? []).map((a) => ({ ...a, hours_per_day: Number(a.hours_per_day) }));
+}
+
+/** This month's resolved Room check estimates. A missing table (migration not run yet) reads as zero. */
+export async function getRoomWasteMonth(householdId: string, month: string): Promise<MonthWaste> {
+  const { data, error } = await createAdminClient()
+    .from("room_alerts")
+    .select("kwh, pesos")
+    .eq("household_id", householdId)
+    .eq("month", month);
+  const missingTable =
+    error &&
+    (error.code === "PGRST205" ||
+      error.code === "42P01" ||
+      (error.message.includes("room_alerts") &&
+        (error.message.includes("does not exist") || error.message.includes("schema cache"))));
+  if (error && missingTable) {
+    console.warn("[room check total] room_alerts is missing; run npm run db:migrate");
+    return { kwh: 0, pesos: null };
+  }
+  assertOk("room check total", error);
+  const rows = data ?? [];
+  return {
+    kwh: rows.reduce((sum, row) => sum + Number(row.kwh), 0),
+    pesos: rows.some((row) => row.pesos !== null)
+      ? rows.reduce((sum, row) => sum + (row.pesos === null ? 0 : Number(row.pesos)), 0)
+      : null,
+  };
 }
 
 export async function getScore(billId: string) {
@@ -186,4 +214,15 @@ export const BADGES: Record<string, { label: string; hint: string }> = {
 export function monthLabel(month: string): string {
   const [y, m] = month.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-PH", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+export function monthInManila(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  return `${year}-${month}`;
 }

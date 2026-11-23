@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plug, ReceiptText, ScanEye } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
-import { getAppliances, getLatestBill, monthLabel } from "@/lib/data";
+import { getAppliances, getLatestBill, getRoomWasteMonth, monthInManila, monthLabel } from "@/lib/data";
 import { CardSection, Notice, buttonStyles, kwh } from "@/components/ui";
 import { Tabs } from "@/components/tabs";
 import { DeleteAppliance } from "./delete-appliance";
@@ -13,7 +13,11 @@ export const metadata = { title: "Scan · Kuryentipid" };
 
 export default async function ScanPage() {
   const viewer = await requireViewer("resident");
-  const [bill, appliances] = await Promise.all([getLatestBill(viewer.householdId), getAppliances(viewer.householdId)]);
+  const [bill, appliances, monthWaste] = await Promise.all([
+    getLatestBill(viewer.householdId),
+    getAppliances(viewer.householdId),
+    getRoomWasteMonth(viewer.householdId, monthInManila()),
+  ]);
 
   return (
     <>
@@ -76,7 +80,7 @@ export default async function ScanPage() {
             label: "Room check",
             content: (
               <CardSection title="Room check" icon={ScanEye}>
-                <RoomCheck />
+                <RoomCheck monthWaste={monthWaste} />
               </CardSection>
             ),
           },

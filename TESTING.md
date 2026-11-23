@@ -45,6 +45,7 @@
   6. Deny the camera permission → a Notice explains how to allow it, and "Check a photo instead" still works.
   7. Use up the hourly cap during auto-check → the limit message says "Auto-check is off." and no more requests are sent.
   8. Storage and the database hold no room photo afterwards.
+  9. Voice on: "Checking the room", then the result in Taglish with pesos in words; with auto-check, it speaks again each time. Untick "Speak the result" → silent. On iPhone, tap Check now once first (Safari only starts speech after a tap).
 - Monthly voucher budget: set it so ₱155 is left; issue 3 × ₱50 → works; issue 1 × ₱10 → blocked with the amount left; clear the budget → issuing works again. A fully used budget disables Issue and shows a notice.
 
 ## Automated tests

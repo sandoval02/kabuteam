@@ -147,7 +147,11 @@ export default async function ReceiptPage() {
         <div className="mt-3">
           <Notice tone="warning">
             {Math.round(receipt.unaccounted.share * 100)}% of your bill is not explained by your appliances. Add any you missed. If it stays high,
-            check for a ref with a worn door seal or devices left on standby, then switch everything off and see if the meter still moves.
+            check for a ref with a worn door seal or devices left on standby, then switch everything off and see if the meter still moves.{" "}
+            <Link href="/scan#room" className="font-semibold underline">
+              Room check
+            </Link>{" "}
+            can spot what was left on.
           </Notice>
         </div>
       )}

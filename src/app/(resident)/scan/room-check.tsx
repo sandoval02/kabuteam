@@ -18,7 +18,7 @@ import {
   type RoomCheck,
   type RoomEntry,
 } from "@/lib/room-check";
-import { saveRoomWaste } from "./room-actions";
+import { saveRoomAlert } from "./room-actions";
 
 const MINUTE = 60_000;
 // The server's 20-per-hour AI cap is the real limit; below 3 minutes it runs out before the hour does.
@@ -70,7 +70,13 @@ const nfKwh = new Intl.NumberFormat("en-PH", { minimumFractionDigits: 2, maximum
 const kwhSmall = (n: number) => `${nfKwh.format(n)} kWh`;
 
 /** Live camera (or a photo) → what was left on with nobody there, in pesos per hour. Photos are never saved. */
-export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: MonthWaste }) {
+export function RoomCheck({
+  monthWaste: initialMonthWaste,
+  initialAlerts,
+}: {
+  monthWaste: MonthWaste;
+  initialAlerts: RoomEntry[];
+}) {
   const canStream = useSyncExternalStore(
     () => () => {},
     () => !!navigator.mediaDevices?.getUserMedia,
@@ -82,14 +88,16 @@ export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: Month
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checks, setChecks] = useState<RoomEntry[]>([]); // this visit only, newest first
+  const [checks, setChecks] = useState<RoomEntry[]>(initialAlerts); // saved alerts, newest first
   const [monthWaste, setMonthWaste] = useState(initialMonthWaste);
-  const savedAlerts = useRef(new Set<number>());
+  const startedAlerts = useRef(new Set(initialAlerts.map((entry) => entry.at)));
+  const resolvedAlerts = useRef(new Set(initialAlerts.filter((entry) => entry.resolvedAt).map((entry) => entry.at)));
   const [voice, setVoice] = useState(true); // read "Checking the room." and each result aloud
   const [minutesText, setMinutesText] = useState(""); // auto-check interval as typed; empty = off
   const auto = toMinutes(minutesText);
   const [nextAt, setNextAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);
+  const nowRef = useRef(0);
 
   // Stopping the tracks turns the camera off: when it is stopped, replaced, or this tab unmounts.
   useEffect(() => () => stream?.getTracks().forEach((t) => t.stop()), [stream]);
@@ -152,7 +160,7 @@ export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: Month
   }
 
   function resolveAlert(at: number) {
-    const resolvedAt = Math.max(now, at + 1);
+    const resolvedAt = Math.max(nowRef.current, now, at + 1);
     setChecks((prev) => prev.map((entry) => (entry.at === at && !entry.resolvedAt ? { ...entry, resolvedAt } : entry)));
     if (voice) say("Naayos na.");
   }
@@ -178,19 +186,44 @@ export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: Month
   const hasOpenAlerts = checks.some((c) => c.waste && !c.resolvedAt);
   useEffect(() => {
     if (!hasOpenAlerts || stream) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    const tick = () => {
+      nowRef.current = Date.now();
+      setNow(nowRef.current);
+    };
+    const first = setTimeout(tick, 0);
+    const id = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, [hasOpenAlerts, stream]);
 
   useEffect(() => {
     for (const entry of checks) {
-      if (!entry.resolvedAt || savedAlerts.current.has(entry.at)) continue;
-      savedAlerts.current.add(entry.at);
+      if (!entry.waste || startedAlerts.current.has(entry.at)) continue;
+      startedAlerts.current.add(entry.at);
+      void saveRoomAlert({
+        startedAt: new Date(entry.at).toISOString(),
+        resolvedAt: null,
+        devices: entry.devices,
+        kwh: null,
+        pesos: null,
+      }).then((result) => {
+        if (!result.ok) toast.error(result.error);
+      });
+    }
+  }, [checks]);
+
+  useEffect(() => {
+    for (const entry of checks) {
+      if (!entry.resolvedAt || resolvedAlerts.current.has(entry.at)) continue;
+      resolvedAlerts.current.add(entry.at);
       const elapsed = monitoredMs(entry, entry.resolvedAt);
       const energy = monitoredConsumption(entry, elapsed);
-      void saveRoomWaste({
+      void saveRoomAlert({
         startedAt: new Date(entry.at).toISOString(),
         resolvedAt: new Date(entry.resolvedAt).toISOString(),
+        devices: entry.devices,
         kwh: energy.kwh,
         pesos: energy.pesos,
       }).then((result) => {
@@ -205,7 +238,7 @@ export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: Month
   const alerts = checks.filter((c) => c.waste);
   const alertList = alerts.length > 0 && (
     <div>
-      <h3 className="mb-1 text-small font-semibold">Alerts this visit</h3>
+      <h3 className="mb-1 text-small font-semibold">Alerts this month</h3>
       <ul className="divide-y divide-border text-small">
         {alerts.map((c) => {
           const resolved = c.resolvedAt !== null;
@@ -218,10 +251,10 @@ export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: Month
                 <p className="font-semibold">{names}</p>
                 <p className="text-muted">
                   <span className="num">{clock(c.at)}</span> ·{" "}
-                  <span className={resolved ? "text-success" : "text-warning"}>{resolved ? "Naayos na" : "Bukas pa"}</span>
+                  <span className={resolved ? "text-success" : "text-warning"}>{resolved ? "Resolved" : "Still on"}</span>
                 </p>
                 <p className="text-muted">
-                  Naiwang bukas: {durationLabel(elapsed)}
+                  Left on: {durationLabel(elapsed)}
                   {resolved ? "" : " so far"} · <span className="num">{kwhSmall(energy.kwh)}</span>
                   {energy.pesos !== null && (
                     <>
@@ -236,10 +269,10 @@ export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: Month
                   variant="secondary"
                   type="button"
                   className="shrink-0"
-                  aria-label={`Naayos na: ${names}, ${clock(c.at)}`}
+                  aria-label={`Mark resolved: ${names}, ${clock(c.at)}`}
                   onClick={() => resolveAlert(c.at)}
                 >
-                  Naayos na ito
+                  Mark resolved
                 </Button>
               )}
             </li>
@@ -263,12 +296,15 @@ export function RoomCheck({ monthWaste: initialMonthWaste }: { monthWaste: Month
 
   return (
     <div ref={root} className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3 rounded-sm bg-surface-2 px-3 py-2.5 text-small">
-        <span className="text-muted">Nasayang this month</span>
-        <span className="num font-semibold">
-          {kwhSmall(monthWaste.kwh)}
-          {monthWaste.pesos !== null && ` · ${peso(monthWaste.pesos)}`}
-        </span>
+      <div className="flex flex-col gap-1 rounded-sm bg-surface-2 px-3 py-2.5 text-small">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-muted">Wasted this month</span>
+          <span className="num font-semibold">
+            {kwhSmall(monthWaste.kwh)}
+            {monthWaste.pesos !== null && ` · ${peso(monthWaste.pesos)}`}
+          </span>
+        </div>
+        <p className="text-muted">Estimates assume the device is plugged in.</p>
       </div>
 
       {!live && (

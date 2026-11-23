@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
 import { earnedBadges, fairScore, type HistoryEntry } from "@/lib/scoring";
-import type { MonthWaste } from "@/lib/room-check";
+import type { MonthWaste, RoomDevice, RoomEntry } from "@/lib/room-check";
 
 // All reads/writes here use the admin client, so callers MUST have checked the viewer first.
 
@@ -61,7 +61,7 @@ export async function getAppliances(householdId: string): Promise<ApplianceRow[]
 export async function getRoomWasteMonth(householdId: string, month: string): Promise<MonthWaste> {
   const { data, error } = await createAdminClient()
     .from("room_alerts")
-    .select("kwh, pesos")
+    .select("kwh, pesos, resolved_at")
     .eq("household_id", householdId)
     .eq("month", month);
   const missingTable =
@@ -75,13 +75,36 @@ export async function getRoomWasteMonth(householdId: string, month: string): Pro
     return { kwh: 0, pesos: null };
   }
   assertOk("room check total", error);
-  const rows = data ?? [];
+  const rows = (data ?? []).filter((row) => row.resolved_at !== null);
   return {
     kwh: rows.reduce((sum, row) => sum + Number(row.kwh), 0),
     pesos: rows.some((row) => row.pesos !== null)
       ? rows.reduce((sum, row) => sum + (row.pesos === null ? 0 : Number(row.pesos)), 0)
       : null,
   };
+}
+
+/** This month's saved alerts, newest first, for the Room check list. */
+export async function getRoomAlertsMonth(householdId: string, month: string): Promise<RoomEntry[]> {
+  const { data, error } = await createAdminClient()
+    .from("room_alerts")
+    .select("started_at, resolved_at, devices")
+    .eq("household_id", householdId)
+    .eq("month", month)
+    .order("started_at", { ascending: false })
+    .limit(10);
+  assertOk("room check alerts", error);
+  return (data ?? [])
+    .map((row) => ({
+      at: new Date(row.started_at).getTime(),
+      resolvedAt: row.resolved_at ? new Date(row.resolved_at).getTime() : null,
+      devices: row.devices as RoomDevice[],
+      readable: true,
+      peoplePresent: false,
+      waste: true,
+      observation: "",
+    }))
+    .filter((row) => row.devices.length > 0);
 }
 
 export async function getScore(billId: string) {

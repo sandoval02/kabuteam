@@ -66,6 +66,8 @@ try {
   await visitor.getByRole("heading", { name: "Your bill is one number. Make it a receipt." }).waitFor();
   await visitor.getByText("Unaccounted").first().waitFor();
   ok("hero with the example receipt rendered");
+  // The strip's lime marker only exists after hydration; before that the slider ignores input.
+  await visitor.locator("nav[aria-label='One billing month'] span[aria-hidden]").waitFor({ timeout: 30000 });
   await visitor.locator("#ranking input[type=range]").first().fill("190");
   await visitor.getByText("Big house ranks higher").waitFor();
   ok("fair-score slider recomputes the leader");

@@ -200,3 +200,7 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | 2026-11-23 | Route error boundaries and a branded 404; data reads throw instead of returning empty | A database or network failure must not look like “no bill” or “no ranking” |
 | 2026-11-23 | Admin/store auth lives in a segment `layout.tsx` above their loading UI | The skeleton must not show an admin/store shell to the wrong role before the redirect |
 | 2026-11-23 | Baseline security headers in `next.config.ts` | `nosniff`, referrer policy, frame denial, camera-only permissions and HSTS; a strict CSP is deferred until the Next runtime is tested with it |
+| 2026-11-23 | Land on the receipt after saving a bill | The receipt is the product's payoff and the demo's “wow” moment; it saves a Home → Full receipt tap |
+| 2026-11-23 | Ranking shows both the score and the actual % saved, and labels the low-usage floor | The list still sorts by score, but nobody mistakes the floor for real savings |
+| 2026-11-23 | A rejected bill can be replaced for the same month; old score and photo are cleared | Gives the resident a recovery path without weakening one-bill-per-month uniqueness |
+| 2026-11-23 | Admin review shows account last 4, AI/manual source, inline photo and next voucher recipients | Faster, more trustworthy review; the leaderboard still never exposes account numbers |

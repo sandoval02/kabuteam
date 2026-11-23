@@ -36,7 +36,7 @@ export default async function ProfilePage() {
     <div className="mx-auto min-h-dvh max-w-[480px]">
       <AppHeader title="Profile" sub={viewer.barangayName} />
       <main className="px-4 pb-12 pt-1">
-        <Link href={homeFor(viewer.role)} className="mb-3 inline-flex h-9 items-center gap-1.5 rounded-full pr-3 text-small font-semibold text-muted hover:text-text">
+        <Link href={homeFor(viewer.role)} className="mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-full pr-3 text-small font-semibold text-muted hover:text-text">
           <ArrowLeft size={12} aria-hidden />
           Back
         </Link>

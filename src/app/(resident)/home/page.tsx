@@ -228,7 +228,7 @@ export default async function HomePage() {
                       )}
                     </ul>
                   )}
-                  <Link href="/receipt" className="mt-1 flex items-center justify-center gap-1 py-2 text-small font-semibold">
+                  <Link href="/receipt" className="mt-1 flex min-h-11 items-center justify-center gap-1 py-2 text-small font-semibold">
                     Full receipt
                     <ChevronRight size={14} aria-hidden />
                   </Link>

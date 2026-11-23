@@ -46,7 +46,7 @@ export default async function ReceiptPage() {
   return (
     <>
       <ToastFromParam param="saved" messages={SAVED_TOASTS} />
-      <Link href="/home" className="mb-2 inline-flex h-9 items-center gap-1.5 text-small font-semibold text-muted hover:text-text">
+      <Link href="/home" className="mb-2 inline-flex min-h-11 items-center gap-1.5 text-small font-semibold text-muted hover:text-text">
         <ArrowLeft size={12} aria-hidden />
         Home
       </Link>

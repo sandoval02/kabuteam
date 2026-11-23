@@ -14,18 +14,18 @@ function greeting(): string {
  */
 export async function AppHeader({ title, sub }: { title?: string; sub?: string }) {
   const [viewer, theme] = await Promise.all([getViewer(), currentTheme()]);
-  const first = viewer?.displayName?.split(" ")[0];
+  const name = viewer?.displayName;
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-2.5 bg-bg/85 px-4 backdrop-blur-xl">
       <Link
         href="/"
         aria-label="TipidTayo home"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-lime font-display text-body font-bold text-on-lime"
+        className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-lime font-display text-body font-bold text-on-lime after:absolute after:-inset-1 after:content-['']"
       >
         T
       </Link>
       <div className="min-w-0 flex-1 leading-tight">
-        <p className="truncate font-display text-body font-semibold">{title ?? (first ? `${greeting()}, ${first}` : greeting())}</p>
+        <p className="truncate font-display text-body font-semibold">{title ?? (name ? `${greeting()}, ${name}` : greeting())}</p>
         <p className="truncate text-small text-muted">{sub ?? (viewer ? `${viewer.householdLabel} · ${viewer.barangayName}` : "")}</p>
       </div>
       {viewer && (

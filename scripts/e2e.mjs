@@ -123,11 +123,32 @@ try {
     console.log("  ! all AI steps failed (quota?), manual form would be shown");
   }
 
+  step("Camera scan API reads a bill photo with Gemini");
+  const billPhoto = readFileSync("scripts/fixtures/sample-bill.jpg");
+  const billRes = await a.request.post(`${BASE}/api/extract/bill`, {
+    multipart: { photo: { name: "bill.jpg", mimeType: "image/jpeg", buffer: billPhoto } },
+  });
+  const billBody = await billRes.json();
+  assert.equal(billRes.status(), 200, JSON.stringify(billBody));
+  if (billBody.data.photoPath) await admin.storage.from("bill-photos").remove([billBody.data.photoPath]);
+  if (billBody.data.extraction) {
+    const extracted = billBody.data.extraction;
+    assert.ok(extracted.readable);
+    assert.ok(String(extracted.account_number).replace(/\D/g, "").endsWith("3123456789"));
+    assert.ok(Math.abs(extracted.kwh - 117) < 1);
+    assert.ok(Math.abs(extracted.amount_due - 1469.52) < 1);
+    assert.ok(extracted.history.length >= 12);
+    ok(`bill read by ${billBody.data.servedBy}`);
+  } else {
+    console.log("  ! bill AI steps failed (quota?), manual form would be shown");
+  }
+
   step("The hourly scan limit stops the 21st request");
   const { data: allUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
   const aId = allUsers.users.find((u) => u.email === email("a")).id;
+  // One sticker scan and one bill scan already used two of the twenty attempts.
   await admin.from("extraction_attempts").insert(
-    Array.from({ length: 19 }, () => ({ profile_id: aId, kind: "appliance" })),
+    Array.from({ length: 18 }, () => ({ profile_id: aId, kind: "appliance" })),
   );
   const limited = await a.request.post(`${BASE}/api/extract/appliance`, {
     multipart: { photo: { name: "sticker.jpg", mimeType: "image/jpeg", buffer: sticker } },

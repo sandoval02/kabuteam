@@ -30,6 +30,10 @@ If any box in the README's **Pre-Flight Checklist** is unchecked, do not write f
 - Relevant items in [TESTING.md](TESTING.md) pass.
 - Docs still accurate.
 
+## Modern Web Guidance
+
+For any front-end task (HTML, CSS, client-side JavaScript, UI components, forms, animation, accessibility, or browser performance), load the `modern-web-guidance` skill (`.opencode/skills/modern-web-guidance`) first with the `skill` tool and follow its workflow before writing code. This applies to small UI fixes and tweaks too. Skip it for backend, infrastructure, or tooling-only work.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

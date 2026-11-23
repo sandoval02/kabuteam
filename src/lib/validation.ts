@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { applianceTypeKeys } from "@/lib/extraction/schemas";
+import { PRESET_KEYS } from "@/lib/extraction/presets";
 
 // One set of rules for every form, used in the browser (instant field errors)
 // and again in the server action (the authoritative check).
@@ -92,7 +93,56 @@ export const displayName = z.object({
     .refine((v) => v === "" || v.length >= 2, "Use at least 2 characters, or leave it empty"),
 });
 
-export const schemas = { credentials, bill, appliance, voucherCode, barangayName, store, vouchers, displayName };
+/** Copies another schema's issues into a superRefine, so one form can switch rule sets. */
+const addIssues = (ctx: z.RefinementCtx, r: z.ZodSafeParseResult<unknown>) => {
+  if (!r.success) for (const i of r.error.issues) ctx.addIssue({ code: "custom", path: i.path, message: i.message });
+};
+
+export const ROLES = ["resident", "store", "admin"] as const;
+export type SignUpRole = (typeof ROLES)[number];
+
+// Every field is a plain string here and every rule lives in superRefine, so all errors show at once.
+// google_credential is set by the Google button; when present, email and password aren't needed.
+export const signIn = z
+  .object({ google_credential: z.string().max(5000).default(""), email: z.string().default(""), password: z.string().default("") })
+  .superRefine((v, ctx) => {
+    if (!v.google_credential) addIssues(ctx, credentials.safeParse(v));
+  });
+
+export const signUp = z
+  .object({
+    google_credential: z.string().max(5000).default(""),
+    email: z.string().default(""),
+    password: z.string().default(""),
+    display_name: z.string().default(""),
+    role: z.string().default(""),
+    store_name: z.string().trim().default(""),
+    admin_code: z.string().trim().default(""),
+    consent: z.string().default(""),
+  })
+  .superRefine((v, ctx) => {
+    if (!(ROLES as readonly string[]).includes(v.role)) ctx.addIssue({ code: "custom", path: ["role"], message: "Pick how you'll use Kuryentipid" });
+    if (v.role === "store" && v.store_name.length < 2) ctx.addIssue({ code: "custom", path: ["store_name"], message: "Enter your store's name" });
+    if (v.role === "store" && v.store_name.length > 60) ctx.addIssue({ code: "custom", path: ["store_name"], message: "Keep it under 60 characters" });
+    if (v.role === "admin" && !v.admin_code) ctx.addIssue({ code: "custom", path: ["admin_code"], message: "Enter the admin access code" });
+    if (v.consent !== "on") ctx.addIssue({ code: "custom", path: ["consent"], message: "Tick this to create your account" });
+    if (!v.google_credential) addIssues(ctx, credentials.extend(displayName.shape).safeParse(v));
+  });
+
+export const aiProvider = z
+  .object({
+    preset: z.enum(PRESET_KEYS, { error: "Pick a provider" }),
+    base_url: z.string().trim().default(""),
+    model: z.string().trim().min(1, "Enter the model name").max(120, "Keep it under 120 characters"),
+    api_key: z.string().trim().min(8, "Paste the provider's API key").max(500, "That key is too long"),
+  })
+  .superRefine((v, ctx) => {
+    // ponytail: https only, no private-network check; the admin is trusted. Add one if non-admins ever get this form.
+    if (v.preset === "custom" && !/^https:\/\/[^\s/]+\.[^\s/]+/.test(v.base_url))
+      ctx.addIssue({ code: "custom", path: ["base_url"], message: "Use the provider's https:// API address, e.g. https://api.example.com/v1" });
+  });
+
+export const schemas = { credentials, signIn, signUp, bill, appliance, voucherCode, barangayName, store, vouchers, displayName, aiProvider };
 export type SchemaKey = keyof typeof schemas;
 
 export type FieldErrors = Record<string, string | undefined>;

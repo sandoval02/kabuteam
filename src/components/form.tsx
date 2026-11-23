@@ -3,12 +3,10 @@
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Notice, buttonStyles } from "./ui";
+import { Notice } from "./ui";
+import { ConfirmDialog, type Confirm } from "./confirm-dialog";
 import { FormContext } from "./form-context";
 import { fieldErrorsOf, schemas, type FieldErrors, type FormState, type SchemaKey } from "@/lib/validation";
-
-
-type Confirm = { title: string; body: string; label: string; tone: "primary" | "destructive" };
 
 /**
  * A form that validates each field as you leave it (and again on submit) with the shared zod rules,
@@ -135,51 +133,21 @@ export function ValidatedForm({
   );
 }
 
-/** Native <dialog>: focus trap, Esc to close and an inert page come from the browser. */
-export function ConfirmDialog({ config, onCancel, onConfirm }: { config: Confirm | null; onCancel: () => void; onConfirm: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (config && !d.open) d.showModal();
-    if (!config && d.open) d.close();
-  }, [config]);
-
-  return (
-    <dialog
-      ref={ref}
-      onClose={onCancel}
-      aria-labelledby="confirm-title"
-      className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-lg bg-surface p-0 text-text shadow-sheet backdrop:bg-black/40 backdrop:backdrop-blur-sm"
-    >
-      {config && (
-        <div className="p-5">
-          <h2 id="confirm-title" className="text-h2 font-semibold">
-            {config.title}
-          </h2>
-          {config.body && <p className="mt-2 text-muted">{config.body}</p>}
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" autoFocus className={buttonStyles.secondary} onClick={() => ref.current?.close()}>
-              Cancel
-            </button>
-            <button type="button" className={config.tone === "destructive" ? buttonStyles.destructive : buttonStyles.primary} onClick={onConfirm}>
-              {config.label}
-            </button>
-          </div>
-        </div>
-      )}
-    </dialog>
-  );
-}
-
 /** Turns a one-shot ?param=value from a redirect into a toast, then removes it from the URL. */
 export function ToastFromParam({ param, messages }: { param: string; messages: Record<string, { text: string; tone?: "success" | "warning" }> }) {
   const search = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const value = search.get(param);
+  const shown = useRef<string | null>(null);
   useEffect(() => {
-    if (!value || !messages[value]) return;
+    if (!value) {
+      shown.current = null;
+      return;
+    }
+    // Strict mode runs effects twice in development; only toast once per URL value.
+    if (!messages[value] || shown.current === value) return;
+    shown.current = value;
     const m = messages[value];
     if (m.tone === "warning") toast.warning(m.text);
     else toast.success(m.text);

@@ -1,4 +1,4 @@
-# TipidTayo: The Idea
+# Kuryentipid: The Idea
 
 > Your electric bill, itemized. Scan your Meralco bill and appliance stickers to see what each appliance costs you, then compete with your barangay on **% saved**, not raw kWh, for sari-sari store vouchers.
 
@@ -37,18 +37,19 @@ You compete against **your own usage**, not your neighbors' kWh. A small house c
 Example: small house 150 → 117 kWh = **22%**. Big house 1,000 → 940 kWh = **6%**. The small house ranks higher even though the big one saved more kWh.
 
 ### Twist 2: The receipt has to add up
-Most energy apps multiply wattage × guessed hours, and the totals never match the bill. TipidTayo **calibrates the appliance estimates to the real bill total**. Usage the appliances can't explain shows as an **"Unaccounted" line**, which can point to a forgotten appliance, a worn ref door seal, standby devices, or a wiring leak.
+Most energy apps multiply wattage × guessed hours, and the totals never match the bill. Kuryentipid **calibrates the appliance estimates to the real bill total**. Usage the appliances can't explain shows as an **"Unaccounted" line**, which can point to a forgotten appliance, a worn ref door seal, standby devices, or a wiring leak.
 
 ## 4. What the app does (built and working)
 
 | Who | Screen | What it does |
 |---|---|---|
-| Visitor | Landing `/` | 3D barangay (Three.js) where bar height = % saved; a receipt that prints as you scroll (GSAP); a slider that runs the real fair-score formula (Motion) |
+| Visitor | Landing `/` | One billing month, day by day: the bill becomes a receipt, stickers become watts, the ranking (a slider running the real fair-score formula), the voucher at the store, and the pilot plan for the council. A sticky day strip follows the section you read |
 | Resident | **Scan** | Photo of the bill (AI reads it) or type it in; every number editable before saving. Appliances by sticker photo or picked from a list |
 | Resident | **Receipt** | Peso cost per appliance, Unaccounted line, top 3 changes with monthly saving and payback months, badges |
 | Resident | **Ranking** | Barangay ranking by fair score, own row highlighted |
 | Resident | **Vouchers** | QR code + 6-character code; shows used/expired |
-| Admin | **Admin** | Approve/reject flagged bills, add partner stores, issue vouchers to top savers, rename barangay |
+| Anyone | **Sign up** | Pick Household, Sari-sari store or Barangay admin; agree to the privacy terms; email + password or Google |
+| Admin | **Admin** | Approve/reject flagged bills, approve store sign-ups, see each store's redeemed total, issue vouchers to top savers, rename barangay |
 | Store | **Store** | Type or camera-scan a code; each voucher works **once only** |
 
 **Badges:** First Scan · 10% Club · Efficient Already · Top 3

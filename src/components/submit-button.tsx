@@ -9,11 +9,18 @@ export function SubmitButton({
   pendingText,
   variant = "primary",
   className = "",
+  disabled,
   ...props
 }: React.ComponentProps<"button"> & { pendingText?: string; variant?: keyof typeof buttonStyles }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} aria-busy={pending} className={`${buttonStyles[variant]} ${className}`} {...props}>
+    <button
+      {...props}
+      type="submit"
+      disabled={pending || disabled}
+      aria-busy={pending}
+      className={`${buttonStyles[variant]} ${className}`}
+    >
       {pending && <LoaderCircle size={15} className="animate-spin" aria-hidden />}
       {pending && pendingText ? pendingText : children}
     </button>

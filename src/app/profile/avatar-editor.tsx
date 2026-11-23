@@ -38,7 +38,7 @@ export function AvatarEditor({ url, initials }: { url: string | null; initials: 
           onClick={() => input.current?.click()}
           disabled={pending}
           aria-label={url ? "Change photo" : "Upload photo"}
-          className="absolute -bottom-1 -right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-on-primary shadow-sheet transition-transform duration-100 active:scale-95 disabled:opacity-60"
+          className="absolute -bottom-1 -right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-on-primary shadow-sheet transition-transform duration-100 after:absolute after:-inset-1 after:content-[''] active:scale-95 disabled:opacity-60"
         >
           {pending ? <LoaderCircle size={12} className="animate-spin" aria-hidden /> : <Pencil size={12} aria-hidden />}
         </button>

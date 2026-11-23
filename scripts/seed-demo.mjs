@@ -79,6 +79,6 @@ console.log(adminId ? "created admin@tipidtayo.test" : "skip admin@tipidtayo.tes
 const storeId = await ensureUser("store@tipidtayo.test", "store");
 if (storeId) {
   const { data: sp } = await db.from("profiles").select("barangay_id").eq("id", storeId).single();
-  await db.from("stores").insert({ barangay_id: sp.barangay_id, name: "Aling Nena Sari-sari Store", owner_profile_id: storeId });
+  await db.from("stores").insert({ barangay_id: sp.barangay_id, name: "Aling Nena Sari-sari Store", owner_profile_id: storeId, approved_at: new Date().toISOString() });
   console.log("created store@tipidtayo.test → Aling Nena Sari-sari Store");
 } else console.log("skip store@tipidtayo.test (exists)");

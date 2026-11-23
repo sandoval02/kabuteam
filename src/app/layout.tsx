@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans, Sora } from "next/font/google";
 import { Toaster } from "sonner";
-import { currentTheme } from "@/components/app-header";
+import { currentTheme } from "@/lib/theme";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
@@ -9,7 +9,7 @@ const sora = Sora({ subsets: ["latin"], weight: ["600", "700"], variable: "--fon
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
-  title: "TipidTayo",
+  title: "Kuryentipid",
   description: "See what each appliance costs you and compete fairly with your barangay on % saved.",
 };
 
@@ -22,9 +22,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className="min-h-dvh text-body">
         {children}
         <Toaster
-          theme="light"
-          position="top-center"
-          offset={16}
+          theme={theme}
+          position="bottom-center"
+          offset={96}
           toastOptions={{
             style: {
               background: "var(--color-surface)",

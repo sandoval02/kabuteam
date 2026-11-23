@@ -7,6 +7,21 @@ export const peso = (n: number) =>
 export const kwh = (n: number) => `${nf1.format(n)} kWh`;
 export const pct = (n: number) => `${nf1.format(n)}%`;
 
+/** "saved 22% vs last year" / "used 4% more than last year". */
+export const savingsText = (savingsPct: number) =>
+  savingsPct >= 0 ? `saved ${pct(savingsPct)} vs last year` : `used ${pct(Math.abs(savingsPct))} more than last year`;
+
+/** A payback period that stays believable: months up to two years, then years, then nothing. */
+export const paybackText = (months: number | null) => {
+  if (months === null || !Number.isFinite(months) || months <= 0) return null;
+  if (months <= 24) return `${months} month${months === 1 ? "" : "s"}`;
+  if (months <= 120) {
+    const years = Math.round(months / 12);
+    return `about ${years} year${years === 1 ? "" : "s"}`;
+  }
+  return null;
+};
+
 const buttonBase =
   "inline-flex h-10 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 text-[0.9375rem] font-bold transition-[background-color,border-color,transform] duration-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60";
 export const buttonStyles = {
@@ -25,7 +40,7 @@ export function Button({
   return <button className={`${buttonStyles[variant]} ${className}`} {...props} />;
 }
 
-export { Field, SelectField } from "./field";
+export { CheckField, Field, SelectField } from "./field";
 
 const noticeStyles = {
   success: { box: "bg-success-bg text-success", Icon: CircleCheck },
@@ -43,6 +58,7 @@ export function Notice({ tone, children }: { tone: keyof typeof noticeStyles; ch
   );
 }
 
+/** Grey placeholder block that mirrors the final layout while a screen loads. */
 export function PageTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
     <header className="mb-4">
@@ -86,6 +102,41 @@ export function IconTile({ icon: Icon, tone = "green", size = "md" }: { icon: Lu
       <Icon size={size === "lg" ? 17 : 14} strokeWidth={1.75} />
     </span>
   );
+}
+
+/** Profile-style page top: a 96px lime circle (or `visual`), centered title and subtitle. */
+export function PageHero({ icon: Icon, visual, title, sub }: { icon?: LucideIcon; visual?: ReactNode; title: ReactNode; sub?: ReactNode }) {
+  return (
+    <section className="mb-5 flex flex-col items-center text-center">
+      {visual ??
+        (Icon && (
+          <span aria-hidden className="flex h-24 w-24 items-center justify-center rounded-full bg-lime text-on-lime ring-2 ring-surface">
+            <Icon size={36} strokeWidth={1.75} />
+          </span>
+        ))}
+      <h1 className="mt-3 text-display font-semibold">{title}</h1>
+      {sub && <p className="text-muted">{sub}</p>}
+    </section>
+  );
+}
+
+/** Profile-style card: heading (with optional icon) inside the card. */
+export function CardSection({ title, icon: Icon, id, children }: { title: ReactNode; icon?: LucideIcon; id?: string; children: ReactNode }) {
+  return (
+    <section id={id} className="mb-3 scroll-mt-16 rounded-md bg-surface p-3.5 shadow-receipt">
+      <h2 className="mb-2 flex items-center gap-2 font-semibold">
+        {Icon && <Icon size={14} strokeWidth={1.75} aria-hidden />}
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/** Grey pulsing placeholder block for loading.tsx skeletons. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  const radius = className.includes("rounded-") ? "" : "rounded-sm";
+  return <span aria-hidden className={`block animate-pulse bg-border motion-reduce:animate-none ${radius} ${className}`} />;
 }
 
 /** White soft-shadow card, the default container. */

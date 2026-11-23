@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { House, ScanLine, Trophy, Ticket } from "lucide-react";
+import { House, ScanLine, Trophy, Ticket, LoaderCircle, type LucideIcon } from "lucide-react";
 
 const ITEMS = [
   { href: "/home", label: "Home", Icon: House },
@@ -10,6 +10,17 @@ const ITEMS = [
   { href: "/ranking", label: "Ranking", Icon: Trophy },
   { href: "/vouchers", label: "Vouchers", Icon: Ticket },
 ];
+
+// Must render inside <Link>: useLinkStatus reports that link's pending navigation.
+function NavIcon({ Icon, active }: { Icon: LucideIcon; active: boolean }) {
+  const { pending } = useLinkStatus();
+  const Shown = pending ? LoaderCircle : Icon;
+  return (
+    <span className={`flex h-6 w-10 items-center justify-center rounded-full transition-colors duration-100 ${active || pending ? "bg-primary-soft text-primary" : ""}`}>
+      <Shown size={18} strokeWidth={1.75} className={pending ? "animate-spin" : undefined} aria-hidden />
+    </span>
+  );
+}
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -26,11 +37,9 @@ export function BottomNav() {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-14 flex-col items-center justify-center gap-0.5 text-[0.6875rem] leading-none ${active ? "font-semibold text-primary" : "text-muted"}`}
+                className={`flex h-14 flex-col items-center justify-center gap-0.5 text-small leading-none ${active ? "font-semibold text-primary" : "text-muted"}`}
               >
-                <span className={`flex h-6 w-10 items-center justify-center rounded-full transition-colors duration-100 ${active ? "bg-primary-soft" : ""}`}>
-                  <Icon size={18} strokeWidth={1.75} aria-hidden />
-                </span>
+                <NavIcon Icon={Icon} active={active} />
                 {label}
               </Link>
             </li>

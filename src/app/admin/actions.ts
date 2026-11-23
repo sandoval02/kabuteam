@@ -27,11 +27,12 @@ export async function reviewBill(_: ActionState, form: FormData): Promise<Action
   const parsed = z.object({ id: z.uuid(), decision: z.enum(["approve", "reject"]) }).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: "Invalid request." };
   const admin = createAdminClient();
-  const { data: bill } = await admin
+  const { data: bill, error: billError } = await admin
     .from("bills")
-    .select("id, baseline_kwh, status, households(profiles(barangay_id))")
+    .select("id, baseline_kwh, status, flag_reasons, households(profiles(barangay_id))")
     .eq("id", parsed.data.id)
     .single();
+  if (billError) return { error: "Could not load that bill. Try again." };
   const barangayId = (bill?.households as unknown as { profiles: { barangay_id: string } } | undefined)?.profiles.barangay_id;
   if (!bill || barangayId !== viewer.barangayId) return { error: "Bill not found." };
   if (bill.status !== "flagged") return { error: "This bill was already reviewed." };
@@ -40,7 +41,22 @@ export async function reviewBill(_: ActionState, form: FormData): Promise<Action
     await admin.from("bills").update({ status: "rejected" }).eq("id", bill.id);
   } else {
     await admin.from("bills").update({ status: "approved" }).eq("id", bill.id);
-    await scoreBill(bill.id, bill.baseline_kwh === null ? null : Number(bill.baseline_kwh));
+    try {
+      await scoreBill(bill.id, bill.baseline_kwh === null ? null : Number(bill.baseline_kwh));
+    } catch (scoreError) {
+      // Put it back in the queue instead of leaving an approved bill with no score.
+      console.error("[reviewBill] score", scoreError);
+      await admin.from("scores").delete().eq("bill_id", bill.id);
+      await admin
+        .from("bills")
+        .update({
+          status: "flagged",
+          flag_reasons: [...(bill.flag_reasons ?? []), "Scoring failed when approved; try again."],
+        })
+        .eq("id", bill.id);
+      revalidatePath("/", "layout");
+      return { error: "Could not score this bill. It stays in the review queue; try again." };
+    }
   }
   // The reviewed card leaves the queue, so report the result at page level.
   revalidatePath("/", "layout");
@@ -54,7 +70,8 @@ export async function addStore(_: ActionState, form: FormData): Promise<ActionSt
 
   const admin = createAdminClient();
   // ponytail: scans the first 1000 users; use a SQL lookup if the barangay grows past that.
-  const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  if (listError) return { error: "Could not look up accounts. Try again." };
   const owner = list?.users.find((u) => u.email?.toLowerCase() === parsed.data.email);
   if (!owner) return { error: "No account with that email.", fieldErrors: { email: "Ask the store owner to create an account first" } };
 
@@ -62,10 +79,39 @@ export async function addStore(_: ActionState, form: FormData): Promise<ActionSt
   if (!profile || profile.barangay_id !== viewer.barangayId) return { error: "That account is not in this barangay.", fieldErrors: { email: "Not in this barangay" } };
   if (profile.role === "admin") return { error: "An admin account can't also be a store.", fieldErrors: { email: "This is an admin account" } };
 
-  const { error } = await admin.from("stores").insert({ barangay_id: viewer.barangayId, name: parsed.data.name, owner_profile_id: owner.id });
+  const { error } = await admin
+    .from("stores")
+    .insert({ barangay_id: viewer.barangayId, name: parsed.data.name, owner_profile_id: owner.id, approved_at: new Date().toISOString() });
   if (error) return { error: error.code === "23505" ? "That account already has a store." : "Could not add the store." };
   await admin.from("profiles").update({ role: "store" }).eq("id", owner.id);
   return done(`${parsed.data.name} added. The owner will see the redeem page next time they sign in.`);
+}
+
+/** A store that signed itself up: approve it (it can now receive vouchers) or decline it (the account becomes a household). */
+export async function reviewStore(_: ActionState, form: FormData): Promise<ActionState> {
+  const viewer = await requireViewer("admin");
+  const parsed = z.object({ id: z.uuid(), decision: z.enum(["approve", "decline"]) }).safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: "Invalid request." };
+  const admin = createAdminClient();
+  const { data: store, error } = await admin
+    .from("stores")
+    .select("id, owner_profile_id, approved_at")
+    .eq("id", parsed.data.id)
+    .eq("barangay_id", viewer.barangayId)
+    .maybeSingle();
+  if (error) return { error: "Could not load that store. Try again." };
+  if (!store || store.approved_at) return { error: "This store was already reviewed." };
+
+  if (parsed.data.decision === "approve") {
+    const { error: e } = await admin.from("stores").update({ approved_at: new Date().toISOString() }).eq("id", store.id).is("approved_at", null);
+    if (e) return { error: "Could not approve the store. Try again." };
+  } else {
+    const { error: e } = await admin.from("stores").delete().eq("id", store.id).is("approved_at", null);
+    if (e) return { error: "Could not decline the store. Try again." };
+    await admin.from("profiles").update({ role: "resident" }).eq("id", store.owner_profile_id);
+  }
+  revalidatePath("/", "layout");
+  redirect(`/admin?store=${parsed.data.decision}`);
 }
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid misreads
@@ -78,12 +124,26 @@ export async function issueVouchers(_: ActionState, form: FormData): Promise<Act
   const v = parsed.data;
 
   const admin = createAdminClient();
-  const { data: store } = await admin.from("stores").select("id").eq("id", v.store_id).eq("barangay_id", viewer.barangayId).maybeSingle();
-  if (!store) return { error: "Store not found." };
+  const { data: store, error: storeError } = await admin
+    .from("stores")
+    .select("id")
+    .eq("id", v.store_id)
+    .eq("barangay_id", viewer.barangayId)
+    .not("approved_at", "is", null)
+    .maybeSingle();
+  if (storeError) return { error: "Could not check the store. Try again." };
+  if (!store) return { error: "Store not found, or not approved yet." };
 
-  const { month, rows } = await getLeaderboard(viewer.barangayId);
+  let board: Awaited<ReturnType<typeof getLeaderboard>>;
+  try {
+    board = await getLeaderboard(viewer.barangayId);
+  } catch {
+    return { error: "Could not load the ranking. Try again." };
+  }
+  const { month, rows } = board;
   if (!month) return { error: "No scored bills yet, so there is no one to reward." };
-  const { data: existing } = await admin.from("vouchers").select("household_id").eq("score_month", month);
+  const { data: existing, error: existingError } = await admin.from("vouchers").select("household_id").eq("score_month", month);
+  if (existingError) return { error: "Could not check existing vouchers. Try again." };
   const already = new Set((existing ?? []).map((e) => e.household_id));
   const winners = rows.filter((r) => r.score > 0 && !already.has(r.householdId)).slice(0, v.count);
   if (winners.length === 0) return { error: "Every top saver this month already has a voucher." };
@@ -96,8 +156,5 @@ export async function issueVouchers(_: ActionState, form: FormData): Promise<Act
     console.error("[issueVouchers]", error);
     return { error: "Could not issue vouchers. Try again." };
   }
-  await admin
-    .from("badges")
-    .upsert(rows.slice(0, 3).map((r) => ({ household_id: r.householdId, code: "top3" })), { onConflict: "household_id,code", ignoreDuplicates: true });
   return done(`${winners.length} voucher${winners.length > 1 ? "s" : ""} issued to: ${winners.map((w) => w.label).join(", ")}.`);
 }

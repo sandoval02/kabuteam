@@ -36,9 +36,11 @@ export const SAVINGS_CAP = 30;
 export const LOW_USAGE_KWH = 100;
 export const LOW_USAGE_FLOOR = 15;
 export const UNACCOUNTED_THRESHOLD = 0.15;
+export const UNACCOUNTED_MIN_KWH = 0.5; // below this, rounding noise is not worth a line
 export const RATE_MIN = 8;
 export const RATE_MAX = 20;
 export const EDIT_TOLERANCE = 0.1;
+export const REVIEW_SAVINGS = 0.5; // raw savings above this need a human check
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -86,6 +88,14 @@ export function fairScore(kwh: number, baseline: number | null): FairScore {
   return { savingsPct, score: round2(score), efficient };
 }
 
+/** Badges earned by this bill. Top 3 is awarded from the leaderboard separately. */
+export function earnedBadges(score: FairScore): string[] {
+  const codes = ["first_scan"];
+  if (score.savingsPct >= 10) codes.push("club_10");
+  if (score.efficient) codes.push("efficient");
+  return codes;
+}
+
 export function reconcile(
   appliances: ApplianceInput[],
   bill: { kwh: number; amountDue: number; days: number },
@@ -113,8 +123,11 @@ export function reconcile(
 
   const gap = round2(bill.kwh - lines.reduce((s, l) => s + l.kwh, 0));
   const gapShare = bill.kwh > 0 ? gap / bill.kwh : 0;
+  // Show every material gap, not only the warning-sized ones: the visible lines
+  // must add up to the bill total. The page still reserves the warning notice for gaps
+  // above UNACCOUNTED_THRESHOLD.
   const unaccounted =
-    appliances.length > 0 && gapShare > UNACCOUNTED_THRESHOLD
+    appliances.length > 0 && gap > UNACCOUNTED_MIN_KWH
       ? { kwh: gap, pesos: round2(gap * rate), share: gapShare }
       : null;
 
@@ -144,6 +157,9 @@ export function plausibilityFlags(input: PlausibilityInput): string[] {
     reasons.push(`Rate ₱${rate.toFixed(2)}/kWh is outside ₱${RATE_MIN}–₱${RATE_MAX}`);
   }
   if (input.accountOwnedByOther) reasons.push("Account number belongs to another household");
+  if (input.baseline && input.baseline > 0 && (input.baseline - input.kwh) / input.baseline > REVIEW_SAVINGS) {
+    reasons.push("Savings of more than 50% vs last year need barangay review");
+  }
   const edited = (typed: number | null, ai: number | null | undefined) =>
     typed !== null && ai !== null && ai !== undefined && ai > 0 && Math.abs(typed - ai) / ai > EDIT_TOLERANCE;
   if (input.extracted) {

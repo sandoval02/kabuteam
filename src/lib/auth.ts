@@ -3,6 +3,13 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createAdminClient, createUserClient } from "@/lib/supabase/server";
 
+/** Emails in ADMIN_EMAILS become barangay admins when their account is created. */
+export const adminEmails = () =>
+  (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
 export type Role = "resident" | "store" | "admin";
 export type Viewer = {
   userId: string;
@@ -21,24 +28,30 @@ export type Viewer = {
 /** The signed-in user with profile and household, or null. Cached per request. */
 export const getViewer = cache(async (): Promise<Viewer | null> => {
   const supabase = await createUserClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // getClaims verifies the JWT locally when the project uses asymmetric signing keys,
+  // which is one fewer Auth round-trip than getUser().
+  const { data: auth } = await supabase.auth.getClaims();
+  const userId = auth?.claims.sub;
+  if (!userId) return null;
 
   const admin = createAdminClient();
-  const { data: profile } = await admin
+  const { data: profile, error } = await admin
     .from("profiles")
     .select("role, barangay_id, household_label, display_name, avatar_path, barangays(name), households(id, account_number)")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
+  if (error && error.code !== "PGRST116") {
+    console.error("[getViewer]", error.message);
+    throw new Error("Could not load your profile.");
+  }
   if (!profile) return null;
 
   const household = Array.isArray(profile.households) ? profile.households[0] : profile.households;
   const barangay = Array.isArray(profile.barangays) ? profile.barangays[0] : profile.barangays;
+  const email = typeof auth.claims.email === "string" ? auth.claims.email : "";
   return {
-    userId: user.id,
-    email: user.email ?? "",
+    userId,
+    email,
     role: profile.role as Role,
     barangayId: profile.barangay_id,
     barangayName: (barangay as { name: string } | null)?.name ?? "",
@@ -47,7 +60,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     accountNumber: (household as { account_number: string | null }).account_number,
     displayName: profile.display_name,
     avatarUrl: profile.avatar_path ? admin.storage.from("avatars").getPublicUrl(profile.avatar_path).data.publicUrl : null,
-    initials: initialsOf(profile.display_name, user.email ?? ""),
+    initials: initialsOf(profile.display_name, email),
   };
 });
 

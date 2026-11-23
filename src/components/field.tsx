@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, type ComponentProps, type ReactNode } from "react";
+import { useContext, type ComponentProps, type ReactNode, type Ref } from "react";
 import { TriangleAlert } from "lucide-react";
 import { FormContext } from "./form-context";
 
@@ -22,10 +22,21 @@ function Message({ id, error, hint }: { id: string; error?: string; hint?: strin
   );
 }
 
-type FieldProps = ComponentProps<"input"> & { label: string; hint?: string; error?: string; inputClassName?: string };
+type FieldProps = ComponentProps<"input"> & { label: string; hint?: string; error?: string; inputClassName?: string; inputRef?: Ref<HTMLInputElement> };
 
 /** Label + input + live error. Reads its error from the surrounding ValidatedForm by name. */
-export function Field({ label, hint, error: explicit, id, className = "", inputClassName = "h-10 text-[0.9375rem]", onBlur, onChange, ...props }: FieldProps) {
+export function Field({
+  label,
+  hint,
+  error: explicit,
+  id,
+  className = "",
+  inputClassName = "h-10 text-[0.9375rem]",
+  inputRef,
+  onBlur,
+  onChange,
+  ...props
+}: FieldProps) {
   const fieldId = id ?? props.name ?? label;
   const { error, ctx } = useFieldError(props.name, explicit);
   return (
@@ -35,6 +46,7 @@ export function Field({ label, hint, error: explicit, id, className = "", inputC
         {props.required && <span className="text-muted"> *</span>}
       </label>
       <input
+        ref={inputRef}
         id={fieldId}
         aria-invalid={error ? true : undefined}
         aria-describedby={hint || error ? `${fieldId}-hint` : undefined}
@@ -50,6 +62,32 @@ export function Field({ label, hint, error: explicit, id, className = "", inputC
         {...props}
       />
       <Message id={fieldId} error={error} hint={hint} />
+    </div>
+  );
+}
+
+/** Checkbox with its label beside it, e.g. a consent box. Errors come from the surrounding ValidatedForm. */
+export function CheckField({ label, id, onChange, ...props }: Omit<ComponentProps<"input">, "type"> & { label: ReactNode }) {
+  const fieldId = id ?? props.name ?? "check";
+  const { error, ctx } = useFieldError(props.name);
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={fieldId} className="flex cursor-pointer gap-3 py-1 text-small">
+        <input
+          id={fieldId}
+          type="checkbox"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${fieldId}-hint` : undefined}
+          className="mt-px size-5 shrink-0 cursor-pointer"
+          onChange={(e) => {
+            onChange?.(e);
+            if (props.name) ctx?.onBlur(props.name);
+          }}
+          {...props}
+        />
+        <span>{label}</span>
+      </label>
+      <Message id={fieldId} error={error} />
     </div>
   );
 }

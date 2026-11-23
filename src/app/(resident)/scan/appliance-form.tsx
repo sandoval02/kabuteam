@@ -46,8 +46,8 @@ export function ApplianceForm() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-md bg-surface shadow-receipt p-4">
-      <PhotoCapture label={reading ? "Reading sticker…" : "Scan appliance sticker"} onPhoto={onPhoto} disabled={reading} variant="secondary" />
+    <div className="flex flex-col gap-4">
+      <PhotoCapture label={reading ? "Reading sticker…" : "Scan appliance sticker"} onPhoto={onPhoto} disabled={reading} variant="lime" />
       {note && <Notice tone={note.tone}>{note.text}</Notice>}
       <ValidatedForm
         key={version}

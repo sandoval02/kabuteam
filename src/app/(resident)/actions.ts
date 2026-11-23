@@ -35,34 +35,74 @@ export async function saveBill(_: FormState, form: FormData): Promise<FormState>
   }
 
   const status = flags.length ? "flagged" : "approved";
-  const { data: bill, error } = await admin
+  const month = scoreMonth(b.period_end);
+  const { data: existing, error: existingError } = await admin
     .from("bills")
-    .insert({
-      household_id: viewer.householdId,
-      period_start: b.period_start,
-      period_end: b.period_end,
-      score_month: scoreMonth(b.period_end),
-      kwh: b.kwh,
-      amount_due: b.amount_due,
-      baseline_kwh: b.baseline_kwh,
-      history: b.history,
-      photo_path: b.photo_path.startsWith(`${viewer.userId}/`) ? b.photo_path : null,
-      status,
-      flag_reasons: flags,
-      extracted: b.extracted,
-      served_by: b.served_by || "manual",
-    })
-    .select("id")
-    .single();
+    .select("id, status, photo_path")
+    .eq("household_id", viewer.householdId)
+    .eq("score_month", month)
+    .maybeSingle();
+  if (existingError) {
+    console.error("[saveBill] existing", existingError);
+    return { error: "Could not save the bill. Try again." };
+  }
+  if (existing && existing.status !== "rejected") {
+    return { error: "You already saved a bill for this billing month.", fieldErrors: { period_end: "This month already has a bill" } };
+  }
+
+  const payload = {
+    household_id: viewer.householdId,
+    period_start: b.period_start,
+    period_end: b.period_end,
+    score_month: month,
+    kwh: b.kwh,
+    amount_due: b.amount_due,
+    baseline_kwh: b.baseline_kwh,
+    history: b.history,
+    photo_path: b.photo_path.startsWith(`${viewer.userId}/`) ? b.photo_path : null,
+    status,
+    flag_reasons: flags,
+    extracted: b.extracted,
+    served_by: b.served_by || "manual",
+  };
+  if (existing) {
+    await admin.from("scores").delete().eq("bill_id", existing.id);
+  }
+  const { data: bill, error } = existing
+    ? await admin.from("bills").update(payload).eq("id", existing.id).select("id").single()
+    : await admin.from("bills").insert(payload).select("id").single();
   if (error) {
     if (error.code === "23505") return { error: "You already saved a bill for this billing month.", fieldErrors: { period_end: "This month already has a bill" } };
     console.error("[saveBill]", error);
     return { error: "Could not save the bill. Try again." };
   }
 
-  if (status === "approved") await scoreBill(bill.id, b.baseline_kwh);
+  // A replaced bill must not leave its old photo behind.
+  if (existing?.photo_path && existing.photo_path !== payload.photo_path) {
+    const { error: removeError } = await admin.storage.from("bill-photos").remove([existing.photo_path]);
+    if (removeError) console.error("[saveBill] old photo", removeError.message);
+  }
+
+  let scoringFailed = false;
+  if (status === "approved") {
+    try {
+      await scoreBill(bill.id, b.baseline_kwh);
+    } catch (scoreError) {
+      // The bill is safely saved; send it to review rather than leaving a bill that cannot rank.
+      console.error("[saveBill] score", scoreError);
+      scoringFailed = true;
+      await admin.from("scores").delete().eq("bill_id", bill.id);
+      await admin
+        .from("bills")
+        .update({
+          status: "flagged",
+          flag_reasons: [...flags, "The score could not be saved automatically; the barangay will check it."],
+        })
+        .eq("id", bill.id);
+    }
+  }
   revalidatePath("/", "layout");
-  redirect(`/home?saved=${status}`);
+  redirect(`/receipt?saved=${scoringFailed ? "flagged" : status}`);
 }
 
 export async function addAppliance(_: FormState, form: FormData): Promise<FormState> {

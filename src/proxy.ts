@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth/callback"];
+const PUBLIC_PATHS = ["/login", "/robots.txt", "/sitemap.xml"];
 const isPublicPath = (path: string) => path === "/" || PUBLIC_PATHS.some((p) => path.startsWith(p));
 
 // Keeps the Supabase session cookie fresh and sends signed-out visitors to /login.
@@ -23,12 +23,13 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims verifies the JWT locally when the project uses asymmetric signing keys.
+  // The page still checks the role and household against the database.
+  const { data: auth } = await supabase.auth.getClaims();
+  const signedIn = Boolean(auth?.claims.sub);
 
   const isPublic = isPublicPath(request.nextUrl.pathname);
-  if (!user && !isPublic && !request.nextUrl.pathname.startsWith("/api")) {
+  if (!signedIn && !isPublic && !request.nextUrl.pathname.startsWith("/api")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

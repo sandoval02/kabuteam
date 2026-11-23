@@ -1,4 +1,4 @@
-# Tasks: TipidTayo
+# Tasks: Kuryentipid
 
 Order matters: the core loop first, polish last. Each task is about 2 hours or less. Times are a share of the total hackathon time, so scale them to your event's length.
 
@@ -34,7 +34,7 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 | 2.2 | Email + password login, profile with role + household label | 2.1 | | [x] |
 | 2.3 | Save bills/appliances; compute score on approve; flag on plausibility failure | 1.1, 2.1 | | [x] |
 | 2.4 | Ranking screen (current month, my row pinned, empty state) | 2.3 | | [x] |
-| 2.5 | Badges awarded on score (First Scan, 10% Club, Efficient Already, Top 3) | 2.3 | | [x] |
+| 2.5 | Badges awarded from scores (First Scan, 10% Club, Efficient Already, Top 3) | 2.3 | | [x] |
 | 2.6 | Vouchers: issue to top savers, VoucherCard with QR + fallback code | 2.1 | | [x] |
 | 2.7 | Store page: enter/scan code → atomic redeem, clear error per case | 2.6 | | [x] |
 | 2.8 | Admin page: flagged queue approve/reject, voucher pool, partner stores | 2.3 | | [x] |

@@ -1,4 +1,4 @@
--- TipidTayo initial schema.
+-- Kuryentipid initial schema.
 -- Security model: all writes go through trusted server code using the secret key.
 -- RLS below only allows signed-in users to READ their own rows (defense in depth).
 

@@ -1,14 +1,17 @@
 import Link from "next/link";
-import { ArrowLeft, Hash, House, LogOut, Mail, MapPin, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, Hash, House, Mail, MapPin, ShieldCheck, UserRound } from "lucide-react";
 import { homeFor, requireViewer } from "@/lib/auth";
-import { AppHeader, currentTheme } from "@/components/app-header";
+import { AppHeader } from "@/components/app-header";
+import { currentTheme } from "@/lib/theme";
 import { ValidatedForm } from "@/components/form";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { Field } from "@/components/ui";
-import { signOut } from "@/app/login/actions";
+import { CardSection, Field, PageHero } from "@/components/ui";
+import { SignOutForm } from "@/components/sign-out-form";
 import { AvatarEditor } from "./avatar-editor";
 import { updateName } from "./actions";
+
+export const metadata = { title: "Profile · Kuryentipid" };
 
 const ROLE_LABEL = { resident: "Resident", store: "Partner store", admin: "Barangay admin" } as const;
 
@@ -33,21 +36,14 @@ export default async function ProfilePage() {
     <div className="mx-auto min-h-dvh max-w-[480px]">
       <AppHeader title="Profile" sub={viewer.barangayName} />
       <main className="px-4 pb-12 pt-1">
-        <Link href={homeFor(viewer.role)} className="mb-3 inline-flex h-9 items-center gap-1.5 rounded-full pr-3 text-small font-semibold text-muted hover:text-text">
+        <Link href={homeFor(viewer.role)} className="mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-full pr-3 text-small font-semibold text-muted hover:text-text">
           <ArrowLeft size={12} aria-hidden />
           Back
         </Link>
 
-        <section className="mb-5 flex flex-col items-center text-center">
-          <AvatarEditor url={viewer.avatarUrl} initials={viewer.initials} />
-          <h1 className="mt-3 text-display font-semibold">{name}</h1>
-          <p className="text-muted">{viewer.email}</p>
-        </section>
+        <PageHero visual={<AvatarEditor url={viewer.avatarUrl} initials={viewer.initials} />} title={name} sub={viewer.email} />
 
-        <section aria-labelledby="info" className="mb-3 rounded-md bg-surface p-3.5 shadow-receipt">
-          <h2 id="info" className="mb-1 font-semibold">
-            Personal info
-          </h2>
+        <CardSection title="Personal info">
           <ul className="divide-y divide-border">
             <Row icon={Mail} label="Email" value={viewer.email} />
             <Row icon={ShieldCheck} label="Role" value={ROLE_LABEL[viewer.role]} />
@@ -59,13 +55,9 @@ export default async function ProfilePage() {
               </>
             )}
           </ul>
-        </section>
+        </CardSection>
 
-        <section aria-labelledby="name" className="mb-3 rounded-md bg-surface p-3.5 shadow-receipt">
-          <h2 id="name" className="mb-2 flex items-center gap-2 font-semibold">
-            <UserRound size={14} strokeWidth={1.75} aria-hidden />
-            Display name
-          </h2>
+        <CardSection title="Display name" icon={UserRound}>
           <ValidatedForm action={updateName} schema="displayName" className="flex flex-col gap-3">
             <Field
               label="Name"
@@ -80,29 +72,14 @@ export default async function ProfilePage() {
               Save name
             </SubmitButton>
           </ValidatedForm>
-        </section>
+        </CardSection>
 
-        <section aria-labelledby="appearance" className="mb-3 rounded-md bg-surface p-3.5 shadow-receipt">
-          <h2 id="appearance" className="mb-2 font-semibold">
-            Appearance
-          </h2>
+        <CardSection title="Appearance">
           <ThemeSwitcher initial={theme} />
-        </section>
+        </CardSection>
 
         <section className="rounded-md bg-surface p-3.5 shadow-receipt">
-          <ValidatedForm action={signOut} className="contents">
-            <button
-              type="submit"
-              data-confirm-title="Sign out?"
-              data-confirm-body="You'll need your email and password to sign in again."
-              data-confirm-label="Sign out"
-              data-confirm-tone="destructive"
-              className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full font-semibold text-error hover:bg-error-bg"
-            >
-              <LogOut size={14} strokeWidth={1.75} aria-hidden />
-              Sign out
-            </button>
-          </ValidatedForm>
+          <SignOutForm className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full font-semibold text-error hover:bg-error-bg" />
         </section>
       </main>
     </div>

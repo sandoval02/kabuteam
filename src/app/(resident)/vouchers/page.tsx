@@ -4,17 +4,20 @@ import { Ticket } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getLeaderboard, monthLabel } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/server";
-import { PageTitle, buttonStyles, pct, peso } from "@/components/ui";
+import { buttonStyles, pct, peso } from "@/components/ui";
+
+export const metadata = { title: "Vouchers · Kuryentipid" };
 
 export default async function VouchersPage() {
   const viewer = await requireViewer("resident");
   const board = await getLeaderboard(viewer.barangayId);
   const myRank = board.rows.findIndex((r) => r.householdId === viewer.householdId);
-  const { data } = await createAdminClient()
+  const { data, error } = await createAdminClient()
     .from("vouchers")
     .select("id, code, amount, score_month, expires_at, redeemed_at, stores(name)")
     .eq("household_id", viewer.householdId)
     .order("created_at", { ascending: false });
+  if (error) throw new Error(`Could not load vouchers: ${error.message}`);
 
   const vouchers = await Promise.all(
     (data ?? []).map(async (v) => ({
@@ -25,38 +28,52 @@ export default async function VouchersPage() {
     })),
   );
 
+  const active = vouchers.filter((v) => v.state === "active");
+  const activeTotal = active.reduce((sum, v) => sum + Number(v.amount), 0);
+  const ranked = myRank >= 0 && board.month !== null;
+
   return (
     <>
-      <PageTitle sub="Show the QR code at the partner store.">Vouchers</PageTitle>
-      {vouchers.length === 0 ? (
-        <div className="rounded-md bg-surface shadow-receipt p-4">
-          <Ticket size={18} strokeWidth={1.75} aria-hidden className="text-muted" />
-          <p className="mt-2 font-semibold">No vouchers yet</p>
-          <p className="mt-1 text-muted">
-            Each month the barangay gives vouchers at partner sari-sari stores to its top savers.
-            {myRank >= 0 && board.month && (
-              <>
-                {" "}
-                For {monthLabel(board.month)} you are <strong className="text-text">#{myRank + 1} of {board.rows.length}</strong> at{" "}
-                <span className="num text-primary">{pct(board.rows[myRank].score)}</span>.
-              </>
-            )}
+      <h1 className="sr-only">Vouchers</h1>
+      {/* Lime hero with real numbers: what's ready to use now, and where this month's ranking stands. */}
+      <section className="mb-3 rounded-lg bg-lime p-5 text-on-lime">
+        {active.length > 0 ? (
+          <>
+            <p className="text-small">Ready to use</p>
+            <p className="num text-[2.25rem] font-semibold leading-tight">{peso(activeTotal)}</p>
+            <p className="text-small">
+              {active.length} active {active.length === 1 ? "voucher" : "vouchers"}. Show the QR code at the partner store.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="font-display text-h2 font-semibold">No vouchers ready</p>
+            <p className="mt-1 text-small">Each month the barangay gives vouchers at partner sari-sari stores to its top savers.</p>
+          </>
+        )}
+        {ranked && (
+          <p className="mt-3 text-small">
+            {monthLabel(board.month!)}: you&apos;re <strong className="num">#{myRank + 1}</strong> of {board.rows.length} at{" "}
+            <strong className="num">{pct(board.rows[myRank].score)}</strong>.
           </p>
-          <Link href="/ranking" className={`${buttonStyles.secondary} mt-4`}>
+        )}
+        {active.length === 0 && (
+          <Link href="/ranking" className={`${buttonStyles.primary} mt-4 w-full`}>
             See the ranking
           </Link>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-4">
+        )}
+      </section>
+      {vouchers.length > 0 && (
+        <ul className="flex flex-col gap-3">
           {vouchers.map((v) => (
             <li
               key={v.id}
-              className={`rounded-md bg-surface shadow-receipt p-4 ${v.state !== "active" ? "opacity-60" : ""}`}
+              className={`rounded-md bg-surface p-3.5 shadow-receipt ${v.state !== "active" ? "opacity-60" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="flex items-center gap-2 font-semibold">
-                    <Ticket size={15} strokeWidth={1.75} aria-hidden />
+                    <Ticket size={14} strokeWidth={1.75} aria-hidden />
                     {peso(Number(v.amount))} off at {v.store}
                   </p>
                   <p className="text-small text-muted">Top saver, {monthLabel(v.score_month)}</p>

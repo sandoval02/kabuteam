@@ -22,18 +22,12 @@ export function RoleFields({ initial }: { initial: SignUpRole }) {
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLFieldSetElement>(null);
-  const refocus = useRef(false);
   const ctx = useContext(FormContext);
   const current = OPTIONS.find((option) => option.value === role) ?? OPTIONS[0];
 
-  // The open menu focuses the chosen row; a click anywhere else folds it away.
+  // Opening puts the keyboard on the chosen row so arrows and Space work at once.
   useEffect(() => {
-    if (open) {
-      list.current?.querySelector<HTMLInputElement>("input:checked")?.focus();
-    } else if (refocus.current) {
-      refocus.current = false;
-      trigger.current?.focus();
-    }
+    if (open) list.current?.querySelector<HTMLInputElement>("input:checked")?.focus();
   }, [open]);
 
   useEffect(() => {
@@ -46,8 +40,14 @@ export function RoleFields({ initial }: { initial: SignUpRole }) {
   }, [open]);
 
   function close() {
-    refocus.current = true;
     setOpen(false);
+    trigger.current?.focus();
+  }
+
+  function choose(value: SignUpRole) {
+    setRole(value);
+    ctx?.onChange("role");
+    close();
   }
 
   return (
@@ -56,12 +56,10 @@ export function RoleFields({ initial }: { initial: SignUpRole }) {
         ref={root}
         className="relative"
         onBlur={(event) => {
-          if (!open || event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-          // Some browsers report no relatedTarget while focus moves between rows;
-          // check again after the click or Tab has finished.
-          window.setTimeout(() => {
-            if (!root.current?.contains(document.activeElement)) setOpen(false);
-          }, 0);
+          // Tab past the group closes it; a blur with no next target is left alone
+          // so the click that follows still reaches the row.
+          const next = event.relatedTarget as Node | null;
+          if (open && next && !event.currentTarget.contains(next)) setOpen(false);
         }}
         onKeyDown={(event) => {
           if (open && event.key === "Escape") {
@@ -76,52 +74,38 @@ export function RoleFields({ initial }: { initial: SignUpRole }) {
         <button
           ref={trigger}
           type="button"
-          hidden={open}
           aria-labelledby="role-label role-value"
-          aria-describedby="role-sub"
           aria-expanded={open}
           aria-controls="role-options"
           onClick={() => setOpen(!open)}
-          className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-sm border border-lime bg-lime px-3 py-2 text-left text-on-lime transition-colors duration-100 hover:bg-lime-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="flex h-10 w-full cursor-pointer items-center gap-2.5 rounded-sm border border-border-strong bg-surface-2 px-3 text-left transition-colors duration-100 hover:border-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <current.Icon size={20} strokeWidth={1.75} aria-hidden className="shrink-0" />
-          <span className="min-w-0 flex-1">
-            <span id="role-value" className="block font-semibold">
-              {current.label}
-            </span>
-            <span id="role-sub" className="block text-small">
-              {current.sub}
-            </span>
+          <span id="role-value" className="min-w-0 flex-1 font-semibold">
+            {current.label}
           </span>
           <ChevronDown
             size={20}
             strokeWidth={1.75}
             aria-hidden
-            className={`shrink-0 transition-transform duration-100 ${open ? "rotate-180" : ""}`}
+            className={`shrink-0 text-muted transition-transform duration-100 ${open ? "rotate-180" : ""}`}
           />
         </button>
         <fieldset
           ref={list}
           id="role-options"
           hidden={!open}
-          className="flex flex-col gap-1.5"
+          className="mt-1.5 flex flex-col gap-1.5"
         >
           <legend className="sr-only">I&apos;m joining as</legend>
           {OPTIONS.map(({ value, label, sub, Icon }) => (
-            <label key={value} className={row}>
+            <label key={value} className={row} onClick={() => choose(value)}>
               <input
                 type="radio"
                 name="role"
                 value={value}
                 checked={role === value}
-                onChange={() => {
-                  setRole(value);
-                  ctx?.onChange("role");
-                  close();
-                }}
-                onClick={() => {
-                  if (role === value) close();
-                }}
+                onChange={() => choose(value)}
                 className="sr-only"
               />
               <Icon size={20} strokeWidth={1.75} aria-hidden className="shrink-0" />

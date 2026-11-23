@@ -8,8 +8,8 @@
 
 | | Light (default) | Dark |
 |---|---|---|
-| 60% page + cards | `#f2f3f0` page, white cards, `#f4f5f2` rows | `#0a0d0b` page, `#121a15` cards |
-| 30% ink | black `#121412`: text, primary buttons, active nav | light text `#e8efe9`; lime primary buttons |
+| 60% page + cards | `#f2f3f0` page, white cards, `#f4f5f2` rows | `#0a0a0a` page, `#141414` cards |
+| 30% ink | black `#121412`: text, primary buttons, active nav | light text `#ededed`; lime primary buttons |
 | 10% lime `#c6f432` | hero/month cards, chips, rank #1, avatar, wordmark | same, plus this month's chart bar |
 
 - The choice lives in the avatar menu and on Profile: **Light / Dark / System**. It's saved in a `theme` cookie so the server renders the right theme with no flash; **System** follows the OS (`prefers-color-scheme`).
@@ -24,9 +24,9 @@ Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding.
 
 | Token | Value | Use | Contrast |
 |---|---|---|---|
-| `--color-text` | `#e8efe9` | Body text | 15.2:1 on surface |
-| `--color-muted` | `#9aab9f` | Labels, helper text | 7.4:1 on surface |
-| `--color-border-strong` | `#5f7566` | Input borders | 3.6:1 on surface |
+| `--color-text` | `#ededed` | Body text | 15.7:1 on surface |
+| `--color-muted` | `#a3a3a3` | Labels, helper text | 7.3:1 on surface |
+| `--color-border-strong` | `#6b6b6b` | Input borders | 3.5:1 on surface |
 | `--color-primary` | `#c6f432` | Lime accent | 13.8:1 on surface; dark text on it 15.2:1 |
 | `--color-success` | `#4ade80` | Success text | 10:1 |
 | `--color-warning` | `#fbbf24` | Unaccounted line, flags | 10.6:1 |

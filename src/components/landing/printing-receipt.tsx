@@ -38,7 +38,7 @@ export function PrintingReceipt() {
         // Text keeps full contrast throughout: the paper unrolls, and step numbers fill in.
         tl.from("[data-paper]", { clipPath: "inset(0 0 100% 0)", ease: "none", duration: 1 })
           .from("[data-line]", { y: -10, stagger: 0.25, duration: 0.3 }, 0.2)
-          .to("[data-step-num]", { backgroundColor: "#c6f432", borderColor: "#c6f432", color: "#0a0d0b", stagger: 0.4, duration: 0.2 }, 0);
+          .to("[data-step-num]", { backgroundColor: "#c6f432", borderColor: "#c6f432", color: "#0a0a0a", stagger: 0.4, duration: 0.2 }, 0);
       });
     },
     { scope: root },

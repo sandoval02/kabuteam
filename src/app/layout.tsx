@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: "See what each appliance costs you and compete fairly with your barangay on % saved.",
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: [{ media: "(prefers-color-scheme: light)", color: "#f2f3f0" }, { media: "(prefers-color-scheme: dark)", color: "#0a0d0b" }] };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: [{ media: "(prefers-color-scheme: light)", color: "#f2f3f0" }, { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" }] };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const theme = await currentTheme();

@@ -10,11 +10,12 @@ export default async function VouchersPage() {
   const viewer = await requireViewer("resident");
   const board = await getLeaderboard(viewer.barangayId);
   const myRank = board.rows.findIndex((r) => r.householdId === viewer.householdId);
-  const { data } = await createAdminClient()
+  const { data, error } = await createAdminClient()
     .from("vouchers")
     .select("id, code, amount, score_month, expires_at, redeemed_at, stores(name)")
     .eq("household_id", viewer.householdId)
     .order("created_at", { ascending: false });
+  if (error) throw new Error(`Could not load vouchers: ${error.message}`);
 
   const vouchers = await Promise.all(
     (data ?? []).map(async (v) => ({

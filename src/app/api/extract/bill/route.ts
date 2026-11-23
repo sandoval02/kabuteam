@@ -5,7 +5,7 @@ import { jsonError, readImageRequest } from "@/lib/extraction/route-helpers";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  const input = await readImageRequest(request);
+  const input = await readImageRequest(request, "bill");
   if (input instanceof NextResponse) return input;
   const { viewer, bytes, mimeType } = input;
 

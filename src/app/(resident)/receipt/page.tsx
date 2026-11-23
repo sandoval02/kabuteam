@@ -3,7 +3,7 @@ import { ArrowLeft, Award, Lightbulb, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireViewer } from "@/lib/auth";
 import { BADGES, getAppliances, getBadges, getLatestBill, monthLabel } from "@/lib/data";
-import { daysInPeriod, reconcile, swapTip } from "@/lib/scoring";
+import { UNACCOUNTED_THRESHOLD, daysInPeriod, reconcile, swapTip } from "@/lib/scoring";
 import { Card, IconTile, Notice, PageTitle, buttonStyles, kwh, peso } from "@/components/ui";
 
 /** The full itemized receipt, every swap tip and badges. Home shows the summary. */
@@ -81,7 +81,7 @@ export default async function ReceiptPage() {
       {receipt.scaledDown && (
         <p className="mt-2 text-small text-muted">Your hours added up to more than the bill, so each line was scaled down to match it.</p>
       )}
-      {receipt.unaccounted && (
+      {receipt.unaccounted && receipt.unaccounted.share > UNACCOUNTED_THRESHOLD && (
         <div className="mt-3">
           <Notice tone="warning">
             {Math.round(receipt.unaccounted.share * 100)}% of your bill is not explained by your appliances. Add any you missed. If it stays high,

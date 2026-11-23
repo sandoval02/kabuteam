@@ -21,9 +21,11 @@
 - Double-clicking submit buttons
 - Logged-out access to protected pages and endpoints
 - Slow or failed AI/external API responses
+- More than 20 AI extraction attempts in an hour → 429, then works again after the window
+- A database/network failure on a data screen → error boundary with “Try again”, not an empty state
 - Refresh mid-flow
 
 ## Automated tests
 
-- `npm test`: scoring rules (baseline, fair score, cap, low-usage floor, reconciliation, plausibility, swap tips).
+- `npm test`: scoring rules (baseline, fair score, cap, low-usage floor, reconciliation including small gaps, badge eligibility, plausibility, swap tips).
 - `npm run e2e`: with `npm run dev` running, drives Microsoft Edge through the whole demo loop with throwaway accounts (landing, sign-up, bill entry, appliances, receipt, a real Gemini sticker scan, flagging, ranking order, admin review, vouchers, single-use redeem, role checks) and fails on console errors. Deletes its accounts afterwards.

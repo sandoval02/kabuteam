@@ -2,7 +2,7 @@
 
 ## Overview
 
-One Next.js app (App Router, TypeScript) deployed on Vercel. The browser takes photos and renders screens. Next.js server code (Route Handlers and Server Actions) does the photo extraction with Claude, the fair-score maths, and voucher redemption. Supabase provides Postgres, login and photo storage. Row Level Security (RLS) enforces who can read and write what, so a bug in the UI can't leak another household's bill.
+One Next.js app (App Router, TypeScript) deployed on Vercel. The browser takes photos and renders screens. Next.js server code (Route Handlers and Server Actions) does the photo extraction with Gemini (and an optional Claude fallback), the fair-score maths, and voucher redemption. Supabase provides Postgres, login and photo storage. Role checks live in the server code; RLS is defense in depth so a UI bug cannot read another household's rows.
 
 ```
 [Phone browser] ──photo──▶ [Next.js server] ──image──▶ [Claude API (vision)]
@@ -94,12 +94,12 @@ const ApplianceSchema = z.object({
 All in `src/lib/scoring/`, with no I/O, so they're testable with plain asserts.
 
 1. **Effective rate** = `amount_due ÷ kwh`.
-2. **Reconcile:** raw estimate per appliance = `watts × hours/day × days ÷ 1000`. If the raw sum is less than the bill kWh, the gap becomes the **Unaccounted** line, shown when it's > 15% of the bill. If the raw sum is more than the bill kWh, scale every appliance down proportionally so the lines total the bill. Peso per line = `kWh × effective rate`.
+2. **Reconcile:** raw estimate per appliance = `watts × hours/day × days ÷ 1000`. If the raw sum is less than the bill kWh, the gap becomes the **Unaccounted** line for any material gap (above 0.5 kWh rounding noise), so the visible lines add up; the warning notice is reserved for gaps > 15% of the bill. If the raw sum is more than the bill kWh, scale every appliance down proportionally so the lines total the bill. Peso per line = `kWh × effective rate`.
 3. **Fair score:**
    - `baseline` = history entry for the same month last year; else mean of the last 3 history entries.
    - `savings% = (baseline − kwh) ÷ baseline`, clamped to `[−100%, 30%]`.
    - If `kwh ≤ 100`: `score = max(savings%, 15%)` and award "Efficient Already".
-4. **Plausibility:** flag for review if effective rate is outside ₱8–₱20/kWh, if the account number belongs to another household, or if the user edited an extracted kWh/amount by more than 10%.
+4. **Plausibility:** flag for review if effective rate is outside ₱8–₱20/kWh, if the account number belongs to another household, if the user edited an extracted kWh/amount by more than 10%, or if reported savings exceed 50% vs last year (a manual baseline with no bill history).
 
 ## API conventions
 
@@ -112,18 +112,19 @@ All in `src/lib/scoring/`, with no I/O, so they're testable with plain asserts.
 | Table | Key fields | Constraints / notes |
 |---|---|---|
 | `barangays` | `id`, `name` | |
-| `profiles` | `id` (= auth user), `role`, `barangay_id`, `household_label` | role ∈ resident/store/admin |
+| `profiles` | `id` (= auth user), `role`, `barangay_id`, `household_label`, `display_name`, `avatar_path` | role ∈ resident/store/admin |
 | `households` | `id`, `profile_id`, `account_number` | `account_number` UNIQUE |
-| `bills` | `id`, `household_id`, `period_start`, `period_end`, `kwh`, `amount_due`, `history` (jsonb), `photo_path`, `status` | status ∈ pending/approved/flagged/rejected; UNIQUE(`household_id`, `period_end`) |
+| `bills` | `id`, `household_id`, `period_start`, `period_end`, `score_month`, `kwh`, `amount_due`, `baseline_kwh`, `history` (jsonb), `photo_path`, `status`, `flag_reasons`, `served_by` | status ∈ approved/flagged/rejected; UNIQUE(`household_id`, `score_month`) |
 | `appliances` | `id`, `household_id`, `type`, `watts`, `hours_per_day`, `is_inverter` | |
-| `scores` | `bill_id`, `baseline_kwh`, `savings_pct`, `score` | one per approved bill |
+| `scores` | `bill_id`, `household_id`, `barangay_id`, `score_month`, `baseline_kwh`, `savings_pct`, `score` | one per approved bill; UNIQUE(`household_id`, `score_month`) |
 | `badges` | `household_id`, `code`, `awarded_at` | UNIQUE(`household_id`, `code`) |
-| `stores` | `id`, `barangay_id`, `name`, `owner_profile_id` | |
-| `vouchers` | `id`, `code`, `household_id`, `store_id`, `amount`, `expires_at`, `redeemed_at` | `code` UNIQUE; redeem = `UPDATE … SET redeemed_at = now() WHERE code = $1 AND redeemed_at IS NULL AND expires_at > now()`, so it's single-use even with double-taps |
+| `stores` | `id`, `barangay_id`, `name`, `owner_profile_id` | one store per owner |
+| `vouchers` | `id`, `code`, `household_id`, `store_id`, `amount`, `score_month`, `expires_at`, `redeemed_at` | `code` UNIQUE; one per household per month; redeem = `UPDATE … SET redeemed_at = now() WHERE code = $1 AND redeemed_at IS NULL AND expires_at > now()`, so it's single-use even with double-taps |
+| `extraction_attempts` | `profile_id`, `kind`, `created_at` | best-effort hourly scan cap (20/user/hour); server-only |
 
-The leaderboard is a SQL view over `scores` joined to `profiles.household_label`, for the current month and barangay. It never exposes account numbers or names.
+The leaderboard is built by queries in `src/lib/data.ts` over `scores` joined to `profiles.household_label`, for the latest scored month and the viewer's barangay. It never exposes account numbers or names. Top 3 badges are awarded by `scoreBill` when at least two households have scores in that month.
 
-RLS: residents read/write only rows linked to their own household; everyone in a barangay can read the leaderboard view; store owners can update only vouchers for their store; admins only rows in their barangay.
+RLS: signed-in users can read their own profile, household, bills, appliances, scores, badges and vouchers; stores and barangays are readable. Role restrictions (store/admin) are enforced in server actions and pages, which use the server-only client for the reads and writes they authorize.
 
 Bill photos go in a private Storage bucket, readable by the owner and their barangay admin only.
 
@@ -148,25 +149,27 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 /
 ├── src/
 │   ├── app/
+│   │   ├── (resident)/home/        # default resident dashboard
 │   │   ├── (resident)/scan/        # bill + appliance capture
 │   │   ├── (resident)/receipt/
 │   │   ├── (resident)/ranking/
 │   │   ├── (resident)/vouchers/
+│   │   ├── (resident)/profile/     # display name, avatar, theme
 │   │   ├── store/                  # redeem page
 │   │   ├── admin/                  # review + voucher pool
 │   │   ├── login/
 │   │   └── api/extract/{bill,appliance}/route.ts
 │   ├── components/
-│   │   ├── ui/                     # Button, Input, PhotoCapture, Receipt, Toast, ...
+│   │   ├── ui.tsx, field.tsx, form.tsx  # Button, Field, Notice, Card, validated forms, toasts
+│   │   ├── landing/                # 3D scene, GSAP receipt, fair-score demo
 │   │   └── <feature>/
 │   ├── lib/
-│   │   ├── extraction/             # Claude client + Zod schemas
+│   │   ├── extraction/             # Gemini + optional Claude client, Zod schemas, scan cap
 │   │   ├── scoring/                # reconcile, fairScore, plausibility (+ tests)
 │   │   └── supabase/               # server + browser clients
-│   ├── components/landing/     # landing page: 3D scene, GSAP receipt, fair-score demo
-│   └── app/globals.css         # design tokens (@theme)
+│   └── app/globals.css             # design tokens (@theme)
 ├── supabase/migrations/            # SQL schema + RLS policies + seed + grants
-├── scripts/                        # db-migrate.mjs, e2e.mjs, fixtures/
+├── scripts/                        # db-migrate.mjs, e2e.mjs, seed-demo.mjs, fixtures/
 ├── public/
 └── *.md
 ```
@@ -176,12 +179,22 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | Date | Decision | Why |
 |---|---|---|
 | 2026-11-23 | Merge bill-scan receipt with barangay competition; meter camera on roadmap | Each fixes the other's weakness (verification ↔ retention); camera is hardware risk |
-| 2026-11-23 | Next.js + Supabase + Claude, single repo | One deployable; Supabase gives auth, DB, storage and RLS without writing a backend |
+| 2026-11-23 | Next.js + Supabase + Gemini, single repo | One deployable; Supabase gives auth, DB, storage and RLS without writing a backend |
 | 2026-11-23 | Baseline = same month last year from the bill's printed history | Removes seasonality and baseline gaming without extra data entry |
 | 2026-11-23 | Email + password, created server-side as confirmed (replaces magic link) | Supabase's built-in mailer sends only a few emails per hour, enough to break a live demo; phone OTP needs a paid SMS provider |
 | 2026-11-23 | Next.js 16 `cacheComponents` off | Every screen depends on the signed-in user; standard dynamic rendering is simpler |
 | 2026-11-23 | Migrations applied with `scripts/db-migrate.mjs` (pg), not the Supabase CLI | The CLI binary would not install on Windows; the script tracks applied files in `_migrations` |
 | 2026-11-23 | Explicit `grant`s in a migration | This Supabase project does not auto-grant new tables to `service_role` / `authenticated` |
-| 2026-11-23 | Landing page with Three.js, GSAP, Motion, Inter font | Requested by the project owner; each animation shows a real mechanic, reduced motion respected; Inter waived in `.impeccable/config.json` |
+| 2026-11-23 | Landing page with Three.js, GSAP, Motion, Tugon type system | Requested by the project owner; each animation shows a real mechanic, reduced motion respected; the font choice is documented in DESIGN_SYSTEM.md |
 | 2026-11-23 | Gemini (free) first, fallback chain Flash → Flash-Lite → optional Claude Haiku → manual entry | Zero cost for the hackathon; separate per-model quotas plus a fallback keep scanning working when one quota or provider fails |
-| 2026-11-23 | Light mode only | One well-tested theme; dark mode not needed for MVP |
+| 2026-11-23 | Light and dark themes, saved in a `theme` cookie | The Tugon/Neobank light theme and OKX-style dark theme share one token set; the cookie lets the server render the right theme without a flash |
+| 2026-11-23 | Hide the Next.js dev indicator; route-level `loading.tsx` skeletons on resident pages | The dev badge covered the bottom nav's Scan tab and flashed "Rendering…" on every navigation; skeletons give immediate feedback while the dynamic page renders |
+| 2026-11-23 | Show an Unaccounted line for every material gap, not only >15% | The core promise is a receipt whose visible lines add up to the bill; the 15% threshold now only controls the warning notice |
+| 2026-11-23 | 10% Club uses actual savings; Top 3 is awarded from the leaderboard | The low-usage floor should lift the ranking score, not falsely claim 10% savings; Top 3 needs at least two scored households |
+| 2026-11-23 | Pin the viewer's ranking row while it is off-screen | Keeps "where am I?" visible on a long list without changing the rank order |
+| 2026-11-23 | Native `BarcodeDetector` for QR scanning, typed code everywhere | No extra scanner dependency; typing is the universal fallback and the demo-safe path |
+| 2026-11-23 | Flag >50% savings vs last year for barangay review | Manual entry has no bill history to verify the baseline; this catches the most obvious inflated values |
+| 2026-11-23 | Cap AI extraction at 20 attempts per user per hour (`extraction_attempts`) | A signed-in account could otherwise burn the free Gemini quota; the fixed-window check fails open if the limiter table is unavailable |
+| 2026-11-23 | Route error boundaries and a branded 404; data reads throw instead of returning empty | A database or network failure must not look like “no bill” or “no ranking” |
+| 2026-11-23 | Admin/store auth lives in a segment `layout.tsx` above their loading UI | The skeleton must not show an admin/store shell to the wrong role before the redirect |
+| 2026-11-23 | Baseline security headers in `next.config.ts` | `nosniff`, referrer policy, frame denial, camera-only permissions and HSTS; a strict CSP is deferred until the Next runtime is tested with it |

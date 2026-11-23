@@ -13,7 +13,7 @@ export default async function AdminPage() {
   const viewer = await requireViewer("admin");
   const admin = createAdminClient();
 
-  const [{ data: flaggedRaw }, { data: stores }, board] = await Promise.all([
+  const [{ data: flaggedRaw, error: flaggedError }, { data: stores, error: storesError }, board] = await Promise.all([
     admin
       .from("bills")
       .select("id, score_month, kwh, amount_due, baseline_kwh, flag_reasons, photo_path, households!inner(profiles!inner(household_label, barangay_id))")
@@ -23,6 +23,8 @@ export default async function AdminPage() {
     admin.from("stores").select("id, name").eq("barangay_id", viewer.barangayId).order("name"),
     getLeaderboard(viewer.barangayId),
   ]);
+  if (flaggedError) throw new Error(`Could not load flagged bills: ${flaggedError.message}`);
+  if (storesError) throw new Error(`Could not load stores: ${storesError.message}`);
 
   const flagged = await Promise.all(
     (flaggedRaw ?? []).map(async (b) => ({

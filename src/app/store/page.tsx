@@ -7,8 +7,9 @@ import { RedeemForm } from "./redeem-form";
 export default async function StorePage() {
   const viewer = await requireViewer("store");
   const admin = createAdminClient();
-  const { data: store } = await admin.from("stores").select("id, name").eq("owner_profile_id", viewer.userId).maybeSingle();
-  const { data: recent } = store
+  const { data: store, error: storeError } = await admin.from("stores").select("id, name").eq("owner_profile_id", viewer.userId).maybeSingle();
+  if (storeError) throw new Error(`Could not load the store: ${storeError.message}`);
+  const { data: recent, error: recentError } = store
     ? await admin
         .from("vouchers")
         .select("code, amount, redeemed_at")
@@ -16,7 +17,8 @@ export default async function StorePage() {
         .not("redeemed_at", "is", null)
         .order("redeemed_at", { ascending: false })
         .limit(10)
-    : { data: [] };
+    : { data: [], error: null };
+  if (recentError) throw new Error(`Could not load recent redemptions: ${recentError.message}`);
 
   return (
     <div className="mx-auto min-h-dvh max-w-[480px]">

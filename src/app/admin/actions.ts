@@ -27,11 +27,12 @@ export async function reviewBill(_: ActionState, form: FormData): Promise<Action
   const parsed = z.object({ id: z.uuid(), decision: z.enum(["approve", "reject"]) }).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: "Invalid request." };
   const admin = createAdminClient();
-  const { data: bill } = await admin
+  const { data: bill, error: billError } = await admin
     .from("bills")
     .select("id, baseline_kwh, status, households(profiles(barangay_id))")
     .eq("id", parsed.data.id)
     .single();
+  if (billError) return { error: "Could not load that bill. Try again." };
   const barangayId = (bill?.households as unknown as { profiles: { barangay_id: string } } | undefined)?.profiles.barangay_id;
   if (!bill || barangayId !== viewer.barangayId) return { error: "Bill not found." };
   if (bill.status !== "flagged") return { error: "This bill was already reviewed." };
@@ -54,7 +55,8 @@ export async function addStore(_: ActionState, form: FormData): Promise<ActionSt
 
   const admin = createAdminClient();
   // ponytail: scans the first 1000 users; use a SQL lookup if the barangay grows past that.
-  const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  if (listError) return { error: "Could not look up accounts. Try again." };
   const owner = list?.users.find((u) => u.email?.toLowerCase() === parsed.data.email);
   if (!owner) return { error: "No account with that email.", fieldErrors: { email: "Ask the store owner to create an account first" } };
 
@@ -78,12 +80,20 @@ export async function issueVouchers(_: ActionState, form: FormData): Promise<Act
   const v = parsed.data;
 
   const admin = createAdminClient();
-  const { data: store } = await admin.from("stores").select("id").eq("id", v.store_id).eq("barangay_id", viewer.barangayId).maybeSingle();
+  const { data: store, error: storeError } = await admin.from("stores").select("id").eq("id", v.store_id).eq("barangay_id", viewer.barangayId).maybeSingle();
+  if (storeError) return { error: "Could not check the store. Try again." };
   if (!store) return { error: "Store not found." };
 
-  const { month, rows } = await getLeaderboard(viewer.barangayId);
+  let board: Awaited<ReturnType<typeof getLeaderboard>>;
+  try {
+    board = await getLeaderboard(viewer.barangayId);
+  } catch {
+    return { error: "Could not load the ranking. Try again." };
+  }
+  const { month, rows } = board;
   if (!month) return { error: "No scored bills yet, so there is no one to reward." };
-  const { data: existing } = await admin.from("vouchers").select("household_id").eq("score_month", month);
+  const { data: existing, error: existingError } = await admin.from("vouchers").select("household_id").eq("score_month", month);
+  if (existingError) return { error: "Could not check existing vouchers. Try again." };
   const already = new Set((existing ?? []).map((e) => e.household_id));
   const winners = rows.filter((r) => r.score > 0 && !already.has(r.householdId)).slice(0, v.count);
   if (winners.length === 0) return { error: "Every top saver this month already has a voucher." };
@@ -96,8 +106,5 @@ export async function issueVouchers(_: ActionState, form: FormData): Promise<Act
     console.error("[issueVouchers]", error);
     return { error: "Could not issue vouchers. Try again." };
   }
-  await admin
-    .from("badges")
-    .upsert(rows.slice(0, 3).map((r) => ({ household_id: r.householdId, code: "top3" })), { onConflict: "household_id,code", ignoreDuplicates: true });
   return done(`${winners.length} voucher${winners.length > 1 ? "s" : ""} issued to: ${winners.map((w) => w.label).join(", ")}.`);
 }

@@ -4,7 +4,7 @@ import { APPLIANCE_PROMPT, ApplianceExtraction } from "@/lib/extraction/schemas"
 import { jsonError, readImageRequest } from "@/lib/extraction/route-helpers";
 
 export async function POST(request: Request) {
-  const input = await readImageRequest(request);
+  const input = await readImageRequest(request, "appliance");
   if (input instanceof NextResponse) return input;
 
   try {

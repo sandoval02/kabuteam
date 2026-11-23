@@ -43,6 +43,11 @@ export function Notice({ tone, children }: { tone: keyof typeof noticeStyles; ch
   );
 }
 
+/** Grey placeholder block that mirrors the final layout while a screen loads. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div aria-hidden className={`rounded-sm bg-border ${className}`} />;
+}
+
 export function PageTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
     <header className="mb-4">

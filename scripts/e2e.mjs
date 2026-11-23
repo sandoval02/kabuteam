@@ -123,6 +123,7 @@ try {
   const sticker = readFileSync("scripts/fixtures/aircon-sticker.jpg");
   const res = await a.request.post(`${BASE}/api/extract/appliance`, {
     multipart: { photo: { name: "sticker.jpg", mimeType: "image/jpeg", buffer: sticker } },
+    timeout: 90_000, // the AI chain may try three slow models before falling back to manual entry
   });
   const body = await res.json();
   assert.equal(res.status(), 200, JSON.stringify(body));
@@ -139,6 +140,7 @@ try {
   const billPhoto = readFileSync("scripts/fixtures/sample-bill.jpg");
   const billRes = await a.request.post(`${BASE}/api/extract/bill`, {
     multipart: { photo: { name: "bill.jpg", mimeType: "image/jpeg", buffer: billPhoto } },
+    timeout: 90_000, // the AI chain may try three slow models before falling back to manual entry
   });
   const billBody = await billRes.json();
   assert.equal(billRes.status(), 200, JSON.stringify(billBody));
@@ -164,6 +166,7 @@ try {
   );
   const limited = await a.request.post(`${BASE}/api/extract/appliance`, {
     multipart: { photo: { name: "sticker.jpg", mimeType: "image/jpeg", buffer: sticker } },
+    timeout: 90_000, // the AI chain may try three slow models before falling back to manual entry
   });
   assert.equal(limited.status(), 429);
   ok("21st scan in an hour is rejected");

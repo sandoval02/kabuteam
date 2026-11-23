@@ -32,7 +32,7 @@ Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding.
 | `--color-warning` | `#fbbf24` | Unaccounted line, flags | 10.6:1 |
 | `--color-error` | `#f87171` | Errors | 6.4:1 |
 
-QR codes stay dark-on-white so any phone camera can scan them. The "Continue with Google" button uses Google's official four-color G mark (required by Google's branding rules); it is the only non-token color in the app.
+QR codes stay dark-on-white so any phone camera can scan them. The Google sign-in button is rendered by Google itself (Google Identity Services: pill shape, large, outline in light / filled black in dark), so its colors follow Google's branding rules; it is the only non-token color in the app.
 
 ### Typography
 
@@ -42,7 +42,7 @@ QR codes stay dark-on-white so any phone camera can scan them. The "Continue wit
 | Body, UI | **Plus Jakarta Sans** (`--font-sans`) | |
 | Numbers, codes, receipt | **JetBrains Mono** (`.num`, `--font-mono`) | `tabular-nums` |
 
-Sizes: display 32/38, h2 20/28, body 16/26, small 14/20 (minimum), amount-lg 28/36. Wordmark: on the landing page, the Kuryentipid lockup image (house + bolt + name, 48px tall): `public/logo-wordmark-light.png` (ink letters) in light mode, `public/logo-wordmark-dark.png` (white letters) in dark mode, swapped with the theme-aware `dark:` variant. Login uses the same lockup at 40px. The app header uses the mark alone (`public/logo.png`, 36px). App icons: `src/app/icon.png`, `src/app/apple-icon.png`. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
+Sizes: display 32/38, h2 20/28, body 16/26, small 14/20 (minimum), amount-lg 28/36. Landing only: hero, section and lead (fluid), plus **figure** (`--text-figure`, 48→96px, line-height 1) for the homepage's bill total, the one number the page is about; it stays within 2.5× its minimum so 200% zoom still works. Wordmark: on the landing page, the Kuryentipid lockup image (house + bolt + name, 48px tall): `public/logo-wordmark-light.png` (ink letters) in light mode, `public/logo-wordmark-dark.png` (white letters) in dark mode, swapped with the theme-aware `dark:` variant. Login uses the same lockup at 40px. The app header uses the mark alone (`public/logo.png`, 36px). App icons: `src/app/icon.png`, `src/app/apple-icon.png`. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
 
 ### Spacing
 
@@ -86,12 +86,7 @@ Navs float: rounded-lg, 45–70% background with `backdrop-blur`, a hairline rin
 
 **App screens:** only to show state change: button press (100ms), toast/sheet 150–200ms, ease-out. No scroll reveals, no count-ups.
 
-**Landing page** (requested by the project owner): three pieces of motion, each explaining a real mechanic:
-- **Three.js** street of example houses: bar height = the real fair-score formula; drag to orbit, hover for the numbers. Auto-rotate off under reduced motion. A screen-reader table carries the same data.
-- **GSAP** ScrollTrigger: the example receipt unrolls as you scroll and step numbers fill in. Text keeps full contrast at every scroll position.
-- **Motion** springs on the fair-score slider bars.
-
-Everything is disabled under `prefers-reduced-motion` (final state shown). Three.js loads client-side only, after the page text.
+**Landing page:** the page is one billing month. The first section stacks the headline (left) with the lead and primary action (right), then a full-width figure: the example bill total in `text-figure` and the same total as a 28px segmented bar (gap 2px, `rounded-sm` blocks; the costliest appliance in `primary-bright`, the rest `border-strong`, Unaccounted `warning`; shares printed on blocks ≥12% wide) over a five-column legend with ₱ and kWh. No split hero with a product card beside the copy. A sticky **month strip** under the header lists six days (Oct 1 bill arrives → Month 3 council report); each day links to its section, and the lime marker moves (200ms ease-out color change) to the day whose section is mid-screen. **Motion** springs on the fair-score slider bars. Nothing else animates; under `prefers-reduced-motion` both are instant. Each later section shows its date in a left calendar gutter (`text-section`, mono) at `md`+; on phones the strip carries the date. No eyebrow/kicker labels above headings.
 
 ## Components
 
@@ -108,7 +103,7 @@ Defined once in `src/components/ui/`. Every interactive component has: default, 
 | **VoucherCard** | Big QR code, 6-character fallback code in mono, store name, amount, expiry. States: active, redeemed (greyed out with "Used on <date>"), expired. |
 | **Modal / bottom sheet** | Bottom sheet on mobile, centered modal ≥ md. Focus trapped, Esc and backdrop close, focus returns to trigger. |
 | **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
-| **Login / register** | `/login` and `/login?mode=up`. Wordmark lockup in the header, then two columns at `lg` (one column below, form first): left-aligned per-mode title + form card + privacy line; a lime panel with three steps (`ScanLine`, `ReceiptText`, `Trophy`) and the example `ReceiptPreview` captioned "Example". |
+| **Login / register** | `/login` and `/login?mode=up` (`&role=store` / `&role=admin` preselects a role). Wordmark lockup in the header, then two columns at `lg` (one column below, form first): title + form card + privacy line; a lime panel listing the billing month (date, who, what) in ink. Sign-up form order: "I'm joining as" role rows (`House` Household, `Store` Sari-sari store, `Landmark` Barangay admin; selected row is lime), the role's extra field (store name or admin access code), the consent checkbox (`CheckField`), Google's button, "or with email", name/email/password, Create account. |
 | **Toast** | Bottom, above nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
 | **Skeleton** | Grey `--color-border` blocks matching the final layout, pulsing (still under reduced motion). Each nav page (Home, Scan, Ranking, Vouchers) has a `loading.tsx`, so a nav tap switches instantly to the skeleton; the tapped nav icon shows a spinner until the page arrives. |
 | **PageHero / CardSection** | The Profile layout, used on Profile only (Ranking and Vouchers open with a lime card of real numbers instead): a 96px lime circle (icon or avatar), centered display title and muted subtitle, then content in cards whose `font-semibold` heading (with optional 14px icon) sits inside the card. Home follows it with a centered hero and card-wrapped content. |
@@ -167,6 +162,7 @@ Non-negotiable. Every visual element has a purpose; every interaction does somet
 - **Success:** large confirmation with amount to discount.
 
 ### Admin (barangay)
-- **Primary:** approve/reject flagged bills. **Secondary:** set monthly voucher pool; add partner stores.
+- **Primary:** approve/reject flagged bills. **Secondary:** set monthly voucher pool; approve store sign-ups; add AI fallback providers.
+- **AI providers:** the chain is a numbered list (server settings, added providers with last test result, manual entry). The add form unlocks "Add to the chain" only after "Run test" passes; the log is a mono list on `surface-2`, verdict line in `success`/`error`.
 - **Empty:** "No bills to review."
 - **Success:** toast + the row leaves the queue.

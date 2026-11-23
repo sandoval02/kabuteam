@@ -47,14 +47,13 @@ async function login(page, who) {
 
 async function enterBill(page, { account, kwh, amount, baseline }) {
   await page.goto(`${BASE}/scan`);
-  await page.getByRole("button", { name: "Type it in instead" }).click();
   await page.getByLabel("Account number").fill(account);
   await page.getByLabel("Period start").fill("2026-09-15");
   await page.getByLabel("Period end").fill("2026-10-15");
   await page.getByLabel("kWh used").fill(String(kwh));
   await page.getByLabel("Amount due (₱)").fill(String(amount));
   await page.getByLabel("Same month last year (kWh)").fill(String(baseline));
-  await page.getByRole("button", { name: "Looks right, save" }).click();
+  await page.getByRole("button", { name: "Save bill" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Save bill" }).click();
   await page.waitForURL(/\/home/);
 }
@@ -64,18 +63,25 @@ try {
   step("Landing page");
   const visitor = await newPage(browser);
   await visitor.goto(BASE);
-  await visitor.getByRole("heading", { name: "Your electric bill, itemized." }).waitFor();
-  await visitor.locator("canvas").first().waitFor({ timeout: 15000 });
-  ok("hero + 3D canvas rendered");
-  await visitor.locator("#fair input[type=range]").first().fill("190");
+  await visitor.getByRole("heading", { name: "Your bill is one number. Make it a receipt." }).waitFor();
+  await visitor.getByText("Unaccounted").first().waitFor();
+  ok("hero with the example receipt rendered");
+  await visitor.locator("#ranking input[type=range]").first().fill("190");
   await visitor.getByText("Big house ranks higher").waitFor();
   ok("fair-score slider recomputes the leader");
+  await visitor.locator("[data-id=bill] a").click();
+  await visitor.waitForFunction(() => scrollY === 0 && document.querySelector("[aria-current=step]")?.closest("li")?.dataset.id === "bill");
+  ok("Oct 1 in the month strip scrolls to the very top and is selected");
 
   step("Resident A signs up through the UI and enters a bill");
   const a = await newPage(browser);
   await a.goto(`${BASE}/login?mode=up`);
   await a.getByLabel("Email").fill(email("a"));
   await a.getByLabel("Password").fill(PASSWORD);
+  await a.getByRole("button", { name: "Create account" }).last().click();
+  await a.getByText("Tick this to create your account").waitFor();
+  ok("sign-up refuses without privacy consent");
+  await a.getByLabel(/I agree that Kuryentipid/).check();
   await a.getByRole("button", { name: "Create account" }).last().click();
   await a.waitForURL(/\/home/);
   await a.getByRole("tab", { name: "Get started" }).waitFor();
@@ -89,13 +95,13 @@ try {
   ok("approved bill scored 22% saved");
 
   step("Resident A adds appliances; receipt itemizes");
-  await a.goto(`${BASE}/scan`);
-  await a.getByLabel("Appliance").selectOption("aircon");
+  await a.goto(`${BASE}/scan#appliances`);
+  await a.getByLabel("Appliance", { exact: true }).selectOption("aircon");
   await a.getByLabel("Hours a day").fill("2");
   await a.getByLabel("Inverter?").selectOption("no");
   await a.getByRole("button", { name: "Add appliance" }).click();
   await a.getByText("Aircon added.").waitFor();
-  await a.getByLabel("Appliance").selectOption("electric_fan");
+  await a.getByLabel("Appliance", { exact: true }).selectOption("electric_fan");
   await a.getByRole("button", { name: "Add appliance" }).click();
   await a.getByText("Electric fan added.").waitFor();
   await a.goto(`${BASE}/receipt`);
@@ -141,24 +147,77 @@ try {
   assert.ok(ia >= 0 && ib >= 0 && ia < ib, `ranking order wrong: ${rows.join(" | ")}`);
   ok("A ranks above B");
 
-  step("Admin adds a store, approves C, issues vouchers");
-  await makeUser("store");
-  await makeUser("admin", "admin");
+  step("A forged Google token is refused");
+  const g = await newPage(browser);
+  await g.goto(`${BASE}/login`);
+  await g.evaluate(() => {
+    const input = document.querySelector("input[name=google_credential]");
+    input.value = "forged.token.value";
+    input.form.requestSubmit();
+  });
+  await g.getByText("Google sign-in didn't go through").waitFor();
+  ok("server rejects an unverified Google ID token");
+
+  step("A store owner signs up and waits for approval");
+  const storeName = `E2E Store ${run}`;
+  const s = await newPage(browser);
+  await s.goto(`${BASE}/login?mode=up&role=store`);
+  await s.getByLabel("Store name").fill(storeName);
+  await s.getByLabel(/I agree that Kuryentipid/).check();
+  await s.getByLabel("Email").fill(email("store"));
+  await s.getByLabel("Password").fill(PASSWORD);
+  await s.getByRole("button", { name: "Create account" }).last().click();
+  await s.waitForURL(/\/store/);
+  await s.getByText("Waiting for the barangay").waitFor();
+  const { data: sUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  createdUsers.push(sUsers.users.find((u) => u.email === email("store")).id);
+  ok("store account is pending, no redeem form yet");
+
+  step("Admin signs up with the access code");
   const ad = await newPage(browser);
-  await login(ad, "admin");
-  assert.match(ad.url(), /\/admin/);
-  await ad.getByLabel("Store name").fill("Aling Nena Store");
-  await ad.getByLabel("Owner's account email").fill(email("store"));
-  await ad.getByRole("button", { name: "Add store" }).click();
-  await ad.getByText("Aling Nena Store added.").waitFor();
-  ok("store added");
+  await ad.goto(`${BASE}/login?mode=up&role=admin`);
+  await ad.getByLabel("Admin access code").fill("not-the-code");
+  await ad.getByLabel(/I agree that Kuryentipid/).check();
+  await ad.getByLabel("Email").fill(email("admin"));
+  await ad.getByLabel("Password").fill(PASSWORD);
+  await ad.getByRole("button", { name: "Create account" }).last().click();
+  await ad.getByText("That admin access code isn't right.").waitFor();
+  ok("wrong admin code refused, no account created");
+  await ad.getByLabel("Admin access code").fill(process.env.ADMIN_SIGNUP_CODE);
+  await ad.getByLabel(/I agree that Kuryentipid/).check();
+  await ad.getByLabel("Password").fill(PASSWORD);
+  await ad.getByRole("button", { name: "Create account" }).last().click();
+  await ad.waitForURL(/\/admin/);
+  const { data: adUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  createdUsers.push(adUsers.users.find((u) => u.email === email("admin")).id);
+  ok("right code creates an admin");
+
+  step("Admin tests an AI fallback provider before adding it");
+  const ai = ad.locator("section", { has: ad.getByRole("heading", { name: "Photo reading (AI)" }) });
+  await ai.getByLabel("Provider").selectOption("openai");
+  await ai.getByLabel("Model").fill("gpt-4.1-mini");
+  await ai.getByLabel("API key").fill("sk-e2e-not-a-real-key-000");
+  assert.ok(await ai.getByRole("button", { name: "Add to the chain" }).isDisabled(), "Add must be locked before a test");
+  await ai.getByRole("button", { name: "Run test" }).click();
+  await ai.getByText(/^FAIL/).waitFor({ timeout: 60000 });
+  assert.ok(await ai.getByRole("button", { name: "Add to the chain" }).isDisabled(), "Add must stay locked after a failed test");
+  const aiLog = await ai.getByRole("list", { name: "Test log" }).innerText();
+  assert.ok(!aiLog.includes("sk-e2e-not-a-real-key-000"), "the API key must never appear in the test log");
+  ok("bad key: test log shows FAIL, Add stays locked");
+
+  step("Admin approves the store, approves C, issues vouchers");
+  const pending = ad.locator("li", { hasText: storeName });
+  await pending.getByRole("button", { name: "Approve" }).click();
+  await ad.getByRole("dialog").getByRole("button", { name: "Approve store" }).click();
+  await ad.getByText("Store approved.").waitFor();
+  ok("store approved");
   const cBill = ad.locator("li", { hasText: "Rate ₱1.67/kWh is outside" });
   await cBill.getByRole("button", { name: "Approve" }).click();
   await ad.getByRole("dialog").getByRole("button", { name: "Approve" }).click();
   await ad.getByText("Bill approved and added to the ranking.").waitFor();
   ok("flagged bill approved");
   await ad.reload();
-  await ad.getByLabel("Store", { exact: true }).selectOption({ label: "Aling Nena Store" });
+  await ad.getByLabel("Store", { exact: true }).selectOption({ label: storeName });
   await ad.getByLabel("Vouchers").fill("2");
   await ad.getByRole("button", { name: "Issue vouchers" }).click();
   await ad.getByRole("dialog").getByRole("button", { name: "Issue vouchers" }).click();
@@ -170,9 +229,7 @@ try {
   const code = (await a.locator("p.tracking-widest").first().innerText()).trim();
   assert.match(code, /^[A-Z0-9]{6}$/);
   ok(`voucher ${code} with QR`);
-  const s = await newPage(browser);
-  await login(s, "store");
-  assert.match(s.url(), /\/store/);
+  await s.goto(`${BASE}/store`);
   await s.getByLabel("Voucher code").fill(code);
   await s.getByRole("button", { name: "Redeem" }).click();
   await s.getByText("Voucher accepted").waitFor();

@@ -64,10 +64,39 @@ export async function addStore(_: ActionState, form: FormData): Promise<ActionSt
   if (!profile || profile.barangay_id !== viewer.barangayId) return { error: "That account is not in this barangay.", fieldErrors: { email: "Not in this barangay" } };
   if (profile.role === "admin") return { error: "An admin account can't also be a store.", fieldErrors: { email: "This is an admin account" } };
 
-  const { error } = await admin.from("stores").insert({ barangay_id: viewer.barangayId, name: parsed.data.name, owner_profile_id: owner.id });
+  const { error } = await admin
+    .from("stores")
+    .insert({ barangay_id: viewer.barangayId, name: parsed.data.name, owner_profile_id: owner.id, approved_at: new Date().toISOString() });
   if (error) return { error: error.code === "23505" ? "That account already has a store." : "Could not add the store." };
   await admin.from("profiles").update({ role: "store" }).eq("id", owner.id);
   return done(`${parsed.data.name} added. The owner will see the redeem page next time they sign in.`);
+}
+
+/** A store that signed itself up: approve it (it can now receive vouchers) or decline it (the account becomes a household). */
+export async function reviewStore(_: ActionState, form: FormData): Promise<ActionState> {
+  const viewer = await requireViewer("admin");
+  const parsed = z.object({ id: z.uuid(), decision: z.enum(["approve", "decline"]) }).safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: "Invalid request." };
+  const admin = createAdminClient();
+  const { data: store, error } = await admin
+    .from("stores")
+    .select("id, owner_profile_id, approved_at")
+    .eq("id", parsed.data.id)
+    .eq("barangay_id", viewer.barangayId)
+    .maybeSingle();
+  if (error) return { error: "Could not load that store. Try again." };
+  if (!store || store.approved_at) return { error: "This store was already reviewed." };
+
+  if (parsed.data.decision === "approve") {
+    const { error: e } = await admin.from("stores").update({ approved_at: new Date().toISOString() }).eq("id", store.id).is("approved_at", null);
+    if (e) return { error: "Could not approve the store. Try again." };
+  } else {
+    const { error: e } = await admin.from("stores").delete().eq("id", store.id).is("approved_at", null);
+    if (e) return { error: "Could not decline the store. Try again." };
+    await admin.from("profiles").update({ role: "resident" }).eq("id", store.owner_profile_id);
+  }
+  revalidatePath("/", "layout");
+  redirect(`/admin?store=${parsed.data.decision}`);
 }
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid misreads
@@ -80,9 +109,15 @@ export async function issueVouchers(_: ActionState, form: FormData): Promise<Act
   const v = parsed.data;
 
   const admin = createAdminClient();
-  const { data: store, error: storeError } = await admin.from("stores").select("id").eq("id", v.store_id).eq("barangay_id", viewer.barangayId).maybeSingle();
+  const { data: store, error: storeError } = await admin
+    .from("stores")
+    .select("id")
+    .eq("id", v.store_id)
+    .eq("barangay_id", viewer.barangayId)
+    .not("approved_at", "is", null)
+    .maybeSingle();
   if (storeError) return { error: "Could not check the store. Try again." };
-  if (!store) return { error: "Store not found." };
+  if (!store) return { error: "Store not found, or not approved yet." };
 
   let board: Awaited<ReturnType<typeof getLeaderboard>>;
   try {

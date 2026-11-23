@@ -24,8 +24,13 @@
 - More than 20 AI extraction attempts in an hour → 429, then works again after the window
 - A database/network failure on a data screen → error boundary with “Try again”, not an empty state
 - Refresh mid-flow
+- Sign up as a store, then sign in as that store before approval → "Waiting for the barangay"; approve on /admin → redeem form appears
+- Sign up as admin with a wrong code → no account is created
+- Google button on the sign-in page with a Google account that has no Kuryentipid account → told to create one first
+- Admin → Photo reading (AI): a wrong key fails with a readable log and Add stays locked; a working key passes, Add unlocks, and editing any field locks it again until a new test
+- Homepage month strip: after scrolling down, Oct 1 returns to the very top and is highlighted
 
 ## Automated tests
 
 - `npm test`: scoring rules (baseline, fair score, cap, low-usage floor, reconciliation including small gaps, badge eligibility, plausibility, swap tips).
-- `npm run e2e`: with `npm run dev` running, drives Microsoft Edge through the whole demo loop with throwaway accounts (landing, sign-up, bill entry, appliances, receipt, a real Gemini sticker scan, flagging, ranking order, admin review, vouchers, single-use redeem, role checks) and fails on console errors. Deletes its accounts afterwards.
+- `npm run e2e`: with `npm run dev` running, drives Microsoft Edge through the whole demo loop with throwaway accounts (landing, sign-up with the consent check, bill entry, appliances, receipt, a real Gemini sticker scan, flagging, ranking order, a forged Google token being refused, store self sign-up → pending → admin approval, admin sign-up with a wrong and a right access code, admin review, vouchers, single-use redeem, role checks) and fails on console errors. Deletes its accounts afterwards. It needs `ADMIN_SIGNUP_CODE` in `.env.local`; Google's script logs a console error (and the run fails) until `http://localhost` and `http://localhost:3000` are Authorized JavaScript origins of the Google client.

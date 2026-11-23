@@ -25,7 +25,7 @@ export function Button({
   return <button className={`${buttonStyles[variant]} ${className}`} {...props} />;
 }
 
-export { Field, SelectField } from "./field";
+export { CheckField, Field, SelectField } from "./field";
 
 const noticeStyles = {
   success: { box: "bg-success-bg text-success", Icon: CircleCheck },

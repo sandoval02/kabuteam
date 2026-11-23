@@ -66,7 +66,9 @@ No coding begins until all of these are done. AI agents must refuse feature work
 4. **Barangay leaderboard:** monthly ranking by fair score (rules above); your row stays visible while you scroll.
 5. **Badges:** First Scan, 10% Club (actual savings), Efficient Already, Top 3 in Barangay (from the leaderboard).
 6. **Vouchers:** monthly top savers receive a single-use QR voucher. The store owner's page scans the QR on browsers with camera QR support, or enters the 6-character code; a used code can't be redeemed again.
-7. **Barangay admin page:** review flagged bills (approve/reject), set the monthly voucher count and amount, add partner stores.
+7. **Barangay admin page:** review flagged bills (approve/reject), set the monthly voucher count and amount, approve store sign-ups and see what each store has redeemed.
+8. **Sign-up by role:** pick Household, Sari-sari store (waits for admin approval before it can receive vouchers) or Barangay admin (needs the admin access code). Privacy consent (RA 10173) is required to create any account.
+9. **AI fallback providers (admin):** the admin page lists the photo-reading chain in order and lets the admin add more providers (OpenAI, Claude, Gemini, Grok, Groq, OpenRouter or any OpenAI-compatible API). Each one must pass a test on a sample bill, with a step-by-step log, before it can be added. Keys are stored encrypted.
 
 ### Out of scope
 
@@ -88,7 +90,7 @@ All rows apply. Fill in an owner for each; one person can own several.
 | Backend | Server Actions, extraction routes, scoring logic | |
 | Database | Supabase schema, constraints, RLS policies, leaderboard view | |
 | AI integration | Claude vision extraction with Zod schemas; testing on real Meralco bills and stickers | |
-| Authentication | Supabase email + password login (accounts created server-side, already confirmed) or Google sign-in (Supabase OAuth, callback at `/auth/callback`), three roles. A failed sign-in says whether the email isn't registered, uses Google, or has the wrong password | |
+| Authentication | Supabase email + password login (accounts created server-side, already confirmed) or Google sign-in (Google Identity Services button; the server verifies Google's ID token and starts the Supabase session), three roles picked at sign-up. A failed sign-in says whether the email isn't registered, uses Google, or has the wrong password | |
 | Git/GitHub | Branching and merges per CONTRIBUTING.md | |
 | Testing | Scoring unit checks; TESTING.md run-through | |
 | Deployment | Vercel + Supabase project, env vars | |
@@ -110,7 +112,7 @@ No dependency gets added beyond this list without a written reason.
 | Styling | **Tailwind CSS** with tokens from `src/app/globals.css` (light + dark) | Fast to build; tokens enforce the design system |
 | UI components | Own small primitives in `components/ui.tsx`, `components/field.tsx` and `components/form.tsx` (Button, Field, Notice, Card, IconTile, Skeleton, ValidatedForm, ConfirmDialog) | Only a handful were needed; shadcn was allowed but not required |
 | Toasts | **sonner** | Accessible, dismissible success/error toasts without a custom live-region implementation |
-| Landing page interaction | **Three.js** via `@react-three/fiber` + `drei` (3D barangay showing the fair score), **GSAP** ScrollTrigger (receipt prints on scroll), **Motion** (fair-score slider) | Requested by the project owner. Each one demonstrates a real mechanic; all respect `prefers-reduced-motion`; loaded only on the landing page |
+| Landing page interaction | **Motion** (fair-score slider springs); a sticky month strip that follows the section you read (IntersectionObserver, no library) | The homepage walks one billing month; Three.js and GSAP were removed with the old hero (2026-11-23) |
 | Icons | **lucide-react** | One consistent SVG set |
 | QR | **qrcode** (generate); the store page uses the browser's native `BarcodeDetector` where available, with the typed 6-character code everywhere | No extra scanner dependency; the typed code always works |
 | Deployment | **Vercel** + Supabase cloud (free tiers) | Zero-config Next.js hosting |
@@ -137,7 +139,11 @@ npm test                        # scoring unit tests
 npm run e2e                     # full demo loop in Microsoft Edge (dev server must be running)
 ```
 
-The first admin: put their email in `ADMIN_EMAILS` before they create their account. Store owners create an account, then the admin links them on the admin page.
+**Roles at sign-up** (`/login?mode=up`): Household, Sari-sari store, or Barangay admin.
+- **Admins** enter the admin access code (`ADMIN_SIGNUP_CODE`, 12+ characters; share it only with officials). Emails in `ADMIN_EMAILS` always become admins.
+- **Store owners** sign up with their store's name; the store waits on the admin page until the admin approves it. The admin can also link an existing account as a store by email.
+
+**Google sign-in:** set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`. In Google Cloud → APIs & Services → Credentials → your OAuth client → **Authorized JavaScript origins**, add `http://localhost`, `http://localhost:3000` and your deployed URL. No redirect URI and no client secret are needed, and nothing has to be enabled in Supabase. If the OAuth consent screen is in *Testing*, only listed test users can sign in. Keep the downloaded `client_secret_*.json` out of git (it's ignored).
 
 **Demo accounts** (after `npm run seed:demo`): `resident@`, `neighbor@`, `admin@`, `store@tipidtayo.test` plus 5 more households, all with `DEMO_PASSWORD`. See [DEMO.md](DEMO.md) for the 2-minute demo script.
 

@@ -26,7 +26,12 @@ One Next.js app (App Router, TypeScript) deployed on Vercel. The browser takes p
 | `store` | Redeem vouchers for their own store |
 | `admin` | Review flagged bills, set voucher pool, manage partner stores, for their barangay |
 
-Stored in `profiles.role`. Login: Supabase Auth with email + password. Sign-up runs on the server and creates the user already confirmed (no email round-trip). Emails in `ADMIN_EMAILS` become admins on sign-up; admins turn an account into a store owner from the admin page.
+Stored in `profiles.role`, chosen at sign-up. Login: Supabase Auth with email + password, or Google. Sign-up runs on the server and creates the user already confirmed (no email round-trip), then sets the role and `profiles.consented_at`.
+
+- **Admin:** needs `ADMIN_SIGNUP_CODE` (checked with a constant-time compare; under 12 characters means admin sign-up is closed). Emails in `ADMIN_EMAILS` always become admins.
+- **Store:** sign-up creates a `stores` row with `approved_at = null`. Only approved stores can be picked when issuing vouchers; the admin approves or declines (decline deletes the store and makes the account a household). Admins can still link an existing account as a store by email (approved at once).
+
+**Google sign-in** uses Google Identity Services, not Supabase OAuth. Google's button returns a signed ID token; it is submitted with the same sign-in/sign-up form (so role and consent still apply), verified on the server with Google's `tokeninfo` endpoint (issuer, `aud` = `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, verified email), then the server starts a Supabase session with `admin.generateLink({ type: "magiclink" })` + `verifyOtp({ token_hash })`. No email is sent. `generateLink` creates a bare user for an unknown email, so it is only called for accounts that already exist. Google-created accounts carry `app_metadata.signup = "google"` so a failed password sign-in can say "use Google". A Google sign-in for an email with no account is refused on the sign-in page and sent to sign-up to pick a role.
 
 ## AI extraction (fallback chain)
 
@@ -37,7 +42,8 @@ Photos are read by a **chain of models tried in order**. The first one that retu
 2. gemini-3.1-flash-lite  (free: 15 RPM, 500/day, separate quota)
 3. gemini-3.8-flash       (free: 5 RPM, 20/day: strongest free model, kept as the accuracy backstop)
 4. Claude Haiku 5.5       (only if ANTHROPIC_API_KEY is set, paid, ~₱0.03/scan)
-5. Manual entry form      (always)
+5. Providers the admin added on /admin, oldest first (OpenAI-compatible, Claude or Gemini)
+6. Manual entry form      (always)
 ```
 
 Limits are per Google Cloud **project**, not per API key: extra keys from the same project add no quota. Order is set by `GEMINI_MODELS`; on demo day, move `gemini-3.8-flash` first if the Lite models misread real bills.
@@ -89,6 +95,13 @@ const ApplianceSchema = z.object({
 });
 ```
 
+### Admin-added providers
+
+The admin page shows the chain and adds fallbacks without a deploy (`src/app/admin/ai-actions.ts`, table `ai_providers`).
+- **Kinds:** Gemini and Claude use their SDKs; everything else (OpenAI, xAI Grok, Groq, OpenRouter, a custom `https://` base URL) uses the OpenAI-compatible `/chat/completions` API with the image as a data URL and `response_format: json_object`. Presets live in `src/lib/extraction/presets.ts`. A 400 from these providers doesn't stop the chain (it usually means the model can't take images or JSON mode).
+- **Test before adding:** "Run test" sends `scripts/fixtures/sample-bill.jpg` to that provider alone and returns a step-by-step log (request, timing, what it read, PASS/FAIL). A pass returns a token signed with HMAC-SHA256 over the exact settings and a hash of the key, valid 15 minutes; "Add" re-checks it server-side, so nothing untested can be saved. "Test again" re-runs it with the stored key and saves the log.
+- **Keys:** encrypted with AES-256-GCM (`src/lib/secret-box.ts`), key derived from `SUPABASE_SECRET_KEY`; only the last 4 characters are ever sent to the browser, and error messages have the key masked. Rotating the Supabase secret key makes saved keys unreadable: the chain skips them and the admin re-adds them. The table has RLS on and no grants for `anon`/`authenticated`.
+
 ## Core logic (pure functions, unit-tested)
 
 All in `src/lib/scoring/`, with no I/O, so they're testable with plain asserts.
@@ -112,15 +125,16 @@ All in `src/lib/scoring/`, with no I/O, so they're testable with plain asserts.
 | Table | Key fields | Constraints / notes |
 |---|---|---|
 | `barangays` | `id`, `name` | |
-| `profiles` | `id` (= auth user), `role`, `barangay_id`, `household_label`, `display_name`, `avatar_path` | role ∈ resident/store/admin |
+| `profiles` | `id` (= auth user), `role`, `barangay_id`, `household_label`, `display_name`, `avatar_path`, `consented_at` | role ∈ resident/store/admin; `consented_at` = privacy consent at sign-up (RA 10173) |
 | `households` | `id`, `profile_id`, `account_number` | `account_number` UNIQUE |
 | `bills` | `id`, `household_id`, `period_start`, `period_end`, `score_month`, `kwh`, `amount_due`, `baseline_kwh`, `history` (jsonb), `photo_path`, `status`, `flag_reasons`, `served_by` | status ∈ approved/flagged/rejected; UNIQUE(`household_id`, `score_month`) |
 | `appliances` | `id`, `household_id`, `type`, `watts`, `hours_per_day`, `is_inverter` | |
 | `scores` | `bill_id`, `household_id`, `barangay_id`, `score_month`, `baseline_kwh`, `savings_pct`, `score` | one per approved bill; UNIQUE(`household_id`, `score_month`) |
 | `badges` | `household_id`, `code`, `awarded_at` | UNIQUE(`household_id`, `code`) |
-| `stores` | `id`, `barangay_id`, `name`, `owner_profile_id` | one store per owner |
+| `stores` | `id`, `barangay_id`, `name`, `owner_profile_id`, `approved_at` | one store per owner; `approved_at` null = waiting for the admin |
 | `vouchers` | `id`, `code`, `household_id`, `store_id`, `amount`, `score_month`, `expires_at`, `redeemed_at` | `code` UNIQUE; one per household per month; redeem = `UPDATE … SET redeemed_at = now() WHERE code = $1 AND redeemed_at IS NULL AND expires_at > now()`, so it's single-use even with double-taps |
 | `extraction_attempts` | `profile_id`, `kind`, `created_at` | best-effort hourly scan cap (20/user/hour); server-only |
+| `ai_providers` | `preset`, `base_url`, `model`, `api_key_enc`, `key_hint`, `last_test` | admin-added fallback providers; key encrypted; server-only |
 
 The leaderboard is built by queries in `src/lib/data.ts` over `scores` joined to `profiles.household_label`, for the latest scored month and the viewer's barangay. It never exposes account numbers or names. Top 3 badges are awarded by `scoreBill` when at least two households have scores in that month.
 
@@ -161,7 +175,7 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 │   │   └── api/extract/{bill,appliance}/route.ts
 │   ├── components/
 │   │   ├── ui.tsx, field.tsx, form.tsx  # Button, Field, Notice, Card, validated forms, toasts
-│   │   ├── landing/                # 3D scene, GSAP receipt, fair-score demo
+│   │   ├── landing/                # homepage: month strip, example data, fair-score demo
 │   │   └── <feature>/
 │   ├── lib/
 │   │   ├── extraction/             # Gemini + optional Claude client, Zod schemas, scan cap
@@ -198,5 +212,11 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | 2026-11-23 | Route error boundaries and a branded 404; data reads throw instead of returning empty | A database or network failure must not look like “no bill” or “no ranking” |
 | 2026-11-23 | Admin/store auth lives in a segment `layout.tsx` above their loading UI | The skeleton must not show an admin/store shell to the wrong role before the redirect |
 | 2026-11-23 | Baseline security headers in `next.config.ts` | `nosniff`, referrer policy, frame denial, camera-only permissions and HSTS; a strict CSP is deferred until the Next runtime is tested with it |
-| 2026-11-23 | Google sign-in via Supabase OAuth (PKCE, `/auth/callback`); Google client ID/secret live only in Supabase, never in the app | Requested by the project owner; one-tap sign-up on phones. The `on_auth_user_created` trigger sets up Google users like any other; the callback copies their Google name and applies `ADMIN_EMAILS` |
+| 2026-11-23 | ~~Google sign-in via Supabase OAuth (PKCE, `/auth/callback`)~~ Superseded the same day, see below | The provider was never enabled in Supabase and the Google client had no matching redirect URI |
 | 2026-11-23 | Failed sign-in reports "not registered" / "uses Google" / "wrong password" via the service-role-only `auth_email_status()` function | Requested by the project owner. Trade-off: it reveals whether an email has an account (account enumeration); acceptable for a barangay demo, revisit with rate limiting before wider launch |
+| 2026-11-23 | Sign-up picks a role: Household, Sari-sari store (admin approves before it can get vouchers), Barangay admin (needs `ADMIN_SIGNUP_CODE`) | Requested by the project owner: stores and admins had no way to create their own accounts. The code and the approval step stop anyone from making themselves an admin or a fake store that collects barangay money |
+| 2026-11-23 | Privacy consent checkbox at sign-up, stored as `profiles.consented_at` | Data Privacy Act (RA 10173); listed as an open item in the pilot brief |
+| 2026-11-23 | Google sign-in through Google Identity Services + server-verified ID token + `generateLink`/`verifyOtp` session, replacing Supabase OAuth | Works with only the public client ID and JavaScript origins (no Supabase provider setup, no redirect URI, no client secret in the app), and keeps role choice and consent in the same form. Trade-off: one `tokeninfo` request per Google sign-in |
+| 2026-11-23 | Homepage rebuilt as "one billing month" (sticky day strip, one section per role's day); Three.js and GSAP removed | Requested by the project owner (remove template look). The 3D street and scroll-printed receipt had no place in the chosen structure, and the GSAP receipt rendered blank until scrolled |
+| 2026-11-23 | Admin can add AI fallback providers from the admin page, each tested on a sample bill before it can be saved; keys encrypted in the database | Requested by the project owner: when the free Gemini quota runs out, scanning should fall back to another provider (OpenAI, Claude, Grok, Groq, ...) without a redeploy. The signed test token makes "tested before adding" a server rule, not a UI hint |
+| 2026-11-23 | Homepage hero: the bill total at `text-figure` above a full-width segmented bar of what each appliance costs, instead of copy-left / receipt-card-right | Requested by the project owner: the split hero is the stock landing-page layout. The new one shows "one number becomes a receipt" in a single glance |

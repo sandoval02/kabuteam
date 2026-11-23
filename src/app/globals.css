@@ -68,6 +68,9 @@
   --text-section--line-height: 1.15;
   --text-lead: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
   --text-lead--line-height: 1.6;
+  /* The homepage's "one number": the bill total, the largest figure on the page. */
+  --text-figure: clamp(3rem, 1.75rem + 5vw, 6rem);
+  --text-figure--line-height: 1;
 
   --container-landing: 70rem;
 
@@ -184,6 +187,7 @@ body {
 
 p,
 li,
+dd,
 figcaption {
   text-wrap-style: pretty;
 }

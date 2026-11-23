@@ -54,6 +54,32 @@ export function Field({ label, hint, error: explicit, id, className = "", inputC
   );
 }
 
+/** Checkbox with its label beside it, e.g. a consent box. Errors come from the surrounding ValidatedForm. */
+export function CheckField({ label, id, onChange, ...props }: Omit<ComponentProps<"input">, "type"> & { label: ReactNode }) {
+  const fieldId = id ?? props.name ?? "check";
+  const { error, ctx } = useFieldError(props.name);
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={fieldId} className="flex cursor-pointer gap-3 py-1 text-small">
+        <input
+          id={fieldId}
+          type="checkbox"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${fieldId}-hint` : undefined}
+          className="mt-px size-5 shrink-0 cursor-pointer"
+          onChange={(e) => {
+            onChange?.(e);
+            if (props.name) ctx?.onBlur(props.name);
+          }}
+          {...props}
+        />
+        <span>{label}</span>
+      </label>
+      <Message id={fieldId} error={error} />
+    </div>
+  );
+}
+
 type SelectProps = ComponentProps<"select"> & { label: string; hint?: string; children: ReactNode };
 
 export function SelectField({ label, hint, id, className = "", children, onBlur, onChange, ...props }: SelectProps) {

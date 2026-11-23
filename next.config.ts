@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   // navigation. Errors still surface in dev without it.
   devIndicators: false,
   poweredByHeader: false,
+  // The admin's AI provider test reads this sample bill from disk at runtime.
+  outputFileTracingIncludes: { "/admin": ["./scripts/fixtures/sample-bill.jpg"] },
   async headers() {
     return [
       {

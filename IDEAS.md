@@ -43,12 +43,13 @@ Most energy apps multiply wattage × guessed hours, and the totals never match t
 
 | Who | Screen | What it does |
 |---|---|---|
-| Visitor | Landing `/` | 3D barangay (Three.js) where bar height = % saved; a receipt that prints as you scroll (GSAP); a slider that runs the real fair-score formula (Motion) |
+| Visitor | Landing `/` | One billing month, day by day: the bill becomes a receipt, stickers become watts, the ranking (a slider running the real fair-score formula), the voucher at the store, and the pilot plan for the council. A sticky day strip follows the section you read |
 | Resident | **Scan** | Photo of the bill (AI reads it) or type it in; every number editable before saving. Appliances by sticker photo or picked from a list |
 | Resident | **Receipt** | Peso cost per appliance, Unaccounted line, top 3 changes with monthly saving and payback months, badges |
 | Resident | **Ranking** | Barangay ranking by fair score, own row highlighted |
 | Resident | **Vouchers** | QR code + 6-character code; shows used/expired |
-| Admin | **Admin** | Approve/reject flagged bills, add partner stores, issue vouchers to top savers, rename barangay |
+| Anyone | **Sign up** | Pick Household, Sari-sari store or Barangay admin; agree to the privacy terms; email + password or Google |
+| Admin | **Admin** | Approve/reject flagged bills, approve store sign-ups, see each store's redeemed total, issue vouchers to top savers, rename barangay |
 | Store | **Store** | Type or camera-scan a code; each voucher works **once only** |
 
 **Badges:** First Scan · 10% Club · Efficient Already · Top 3

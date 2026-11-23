@@ -9,7 +9,9 @@ import { Field, Notice, PageTitle, Section, SelectField, kwh, pct, peso } from "
 import { effectiveRate } from "@/lib/scoring";
 import { envStepNames } from "@/lib/extraction/extract";
 import { AI_PRESETS, type PresetKey } from "@/lib/extraction/presets";
-import { addStore, issueVouchers, renameBarangay, reviewBill, reviewStore } from "./actions";
+import { PAYOUT_METHODS } from "@/lib/validation";
+import { addStore, issueVouchers, recordPayout, renameBarangay, reviewBill, reviewStore, saveBudget } from "./actions";
+import { IssueTotal } from "./issue-total";
 import { removeProvider, retestProvider, type TestResult } from "./ai-actions";
 import { AddProviderForm, TestLog } from "./ai-providers";
 
@@ -19,7 +21,13 @@ export default async function AdminPage() {
   const viewer = await requireViewer("admin");
   const admin = createAdminClient();
 
-  const [{ data: flaggedRaw, error: flaggedError }, { data: storesRaw, error: storesError }, board, { data: providers, error: providersError }] = await Promise.all([
+  const [
+    { data: flaggedRaw, error: flaggedError },
+    { data: storesRaw, error: storesError },
+    board,
+    { data: providers, error: providersError },
+    { data: brgy, error: brgyError },
+  ] = await Promise.all([
     admin
       .from("bills")
       .select(
@@ -28,16 +36,58 @@ export default async function AdminPage() {
       .eq("status", "flagged")
       .eq("households.profiles.barangay_id", viewer.barangayId)
       .order("created_at"),
-    admin.from("stores").select("id, name, approved_at, created_at, vouchers(amount, redeemed_at)").eq("barangay_id", viewer.barangayId).order("name"),
+    admin
+      .from("stores")
+      .select(
+        "id, name, approved_at, created_at, vouchers(amount, redeemed_at, payout_id, score_month), payouts(id, amount, voucher_count, method, reference, paid_at, status, store_note)",
+      )
+      .eq("barangay_id", viewer.barangayId)
+      .order("name"),
     getLeaderboard(viewer.barangayId),
     admin.from("ai_providers").select("id, preset, model, key_hint, last_test").order("created_at"),
+    admin.from("barangays").select("voucher_budget").eq("id", viewer.barangayId).single(),
   ]);
   if (flaggedError) throw new Error(`Could not load flagged bills: ${flaggedError.message}`);
   if (storesError) throw new Error(`Could not load stores: ${storesError.message}`);
+  if (brgyError) throw new Error(`Could not load the barangay: ${brgyError.message}`);
+  type Voucher = { amount: number; redeemed_at: string | null; payout_id: string | null; score_month: string };
+  type Payout = {
+    id: string;
+    amount: number;
+    voucher_count: number;
+    method: keyof typeof PAYOUT_METHODS;
+    reference: string;
+    paid_at: string;
+    status: "pending" | "confirmed" | "disputed";
+    store_note: string | null;
+  };
+  const sum = (list: { amount: number }[]) => list.reduce((total, x) => total + Number(x.amount), 0);
   const allStores = (storesRaw ?? []).map((s) => {
-    const used = (s.vouchers as { amount: number; redeemed_at: string | null }[]).filter((v) => v.redeemed_at);
-    return { ...s, redeemedCount: used.length, redeemedTotal: used.reduce((sum, v) => sum + Number(v.amount), 0) };
+    const vouchers = s.vouchers as Voucher[];
+    const redeemed = vouchers.filter((v) => v.redeemed_at);
+    const unpaid = redeemed.filter((v) => !v.payout_id);
+    const payouts = (s.payouts as Payout[]).toSorted((a, b) => b.paid_at.localeCompare(a.paid_at));
+    return {
+      ...s,
+      vouchers,
+      payouts,
+      redeemedCount: redeemed.length,
+      unpaidCount: unpaid.length,
+      unpaidTotal: sum(unpaid),
+      paidTotal: sum(payouts.filter((p) => p.status === "confirmed")),
+      open: payouts.filter((p) => p.status !== "confirmed"),
+    };
   });
+  // Monthly voucher budget: vouchers issued (not redeemed) for the ranking month in this barangay.
+  const budget = brgy.voucher_budget === null ? null : Number(brgy.voucher_budget);
+  const budgetUsed = board.month ? sum(allStores.flatMap((s) => s.vouchers.filter((v) => v.score_month === board.month))) : 0;
+  const budgetLeft = budget === null ? null : Math.max(0, budget - budgetUsed);
+  const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" });
+  const STATUS = {
+    pending: { label: "Waiting for the store", tone: "text-muted" },
+    confirmed: { label: "Confirmed", tone: "text-success" },
+    disputed: { label: "Disputed", tone: "text-warning" },
+  };
   const stores = allStores.filter((s) => s.approved_at);
   const pendingStores = allStores.filter((s) => !s.approved_at);
   if (providersError) throw new Error(`Could not load AI providers: ${providersError.message}`);
@@ -233,6 +283,17 @@ export default async function AdminPage() {
                 </p>
               </div>
             )}
+            {budget !== null && board.month && (
+              <p className="mb-3 text-small">
+                Budget this month: <strong className="num">{peso(budgetUsed)}</strong> of <span className="num">{peso(budget)}</span> used,{" "}
+                <strong className="num">{peso(budgetLeft ?? 0)}</strong> left
+              </p>
+            )}
+            {budget !== null && board.month && budgetLeft === 0 && (
+              <div className="mb-3">
+                <Notice tone="warning">This month&apos;s {peso(budget)} voucher budget is used up. Raise it under Barangay below to issue more.</Notice>
+              </div>
+            )}
             {stores.length > 0 ? (
               <ValidatedForm action={issueVouchers} schema="vouchers">
                 <SelectField label="Store" name="store_id" required>
@@ -247,9 +308,10 @@ export default async function AdminPage() {
                   <Field label="Amount (₱)" name="amount" type="number" min="1" max="5000" defaultValue="50" required />
                   <Field label="Valid (days)" name="days" type="number" min="1" max="90" defaultValue="30" required />
                 </div>
+                <IssueTotal defaultCount={3} defaultAmount={50} />
                 <SubmitButton
                   pendingText="Issuing…"
-                  disabled={!board.month}
+                  disabled={!board.month || budgetLeft === 0}
                   data-confirm-title="Issue vouchers now?"
                   data-confirm-body="Codes go straight to the top savers who don't have one this month. Issued vouchers can't be taken back."
                   data-confirm-label="Issue vouchers"
@@ -266,15 +328,84 @@ export default async function AdminPage() {
             {stores.length > 0 && (
               <ul className="mb-4 divide-y divide-border rounded-md bg-surface shadow-receipt">
                 {stores.map((s) => (
-                  <li key={s.id} className="flex items-center gap-3 px-4 py-3">
-                    <Store size={15} strokeWidth={1.75} aria-hidden className="shrink-0 text-muted" />
-                    <span className="min-w-0 flex-1 font-semibold">{s.name}</span>
-                    <span className="num shrink-0 text-right text-small">
-                      {peso(s.redeemedTotal)}
-                      <span className="block font-sans text-muted">
-                        {s.redeemedCount} redeemed
+                  <li key={s.id} className="px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <Store size={15} strokeWidth={1.75} aria-hidden className="mt-1 shrink-0 text-muted" />
+                      <span className="min-w-0 flex-1 font-semibold">
+                        {s.name}
+                        <span className="block text-small font-normal text-muted">{s.redeemedCount} redeemed</span>
                       </span>
-                    </span>
+                      <span className="shrink-0 text-right text-small">
+                        <span className="block">
+                          Unpaid <strong className="num">{peso(s.unpaidTotal)}</strong>
+                        </span>
+                        <span className="block text-muted">
+                          Paid <span className="num">{peso(s.paidTotal)}</span>
+                        </span>
+                      </span>
+                    </div>
+                    {s.open.map((po) =>
+                      po.status === "disputed" ? (
+                        <div key={po.id} className="mt-2">
+                          <Notice tone="warning">
+                            {s.name} says {peso(Number(po.amount))} ({shortDate(po.paid_at)}, {PAYOUT_METHODS[po.method]} ref {po.reference}) was not
+                            received: “{po.store_note}”. Settle it in person.
+                          </Notice>
+                        </div>
+                      ) : (
+                        <p key={po.id} className="mt-2 text-small text-muted">
+                          <span className="num">{peso(Number(po.amount))}</span> recorded {shortDate(po.paid_at)} · {PAYOUT_METHODS[po.method]} ref{" "}
+                          {po.reference} · waiting for the store to confirm
+                        </p>
+                      ),
+                    )}
+                    {s.unpaidTotal > 0 && (
+                      <ValidatedForm action={recordPayout} schema="payout" className="mt-3 flex flex-col gap-3">
+                        <input type="hidden" name="store_id" value={s.id} />
+                        <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
+                          <SelectField label="Paid by" id={`method-${s.id}`} name="method" defaultValue="gcash">
+                            {Object.entries(PAYOUT_METHODS).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </SelectField>
+                          <Field
+                            label="Reference"
+                            id={`reference-${s.id}`}
+                            name="reference"
+                            maxLength={60}
+                            required
+                            hint="GCash ref, bank ref or OR number"
+                          />
+                        </div>
+                        <SubmitButton
+                          variant="secondary"
+                          pendingText="Recording…"
+                          data-confirm-title={`Record ${peso(s.unpaidTotal)} paid to ${s.name}?`}
+                          data-confirm-body={`This locks the ${s.unpaidCount} unpaid redeemed voucher${s.unpaidCount === 1 ? "" : "s"} into one payment and can't be undone. The store is then asked to confirm it received the money.`}
+                          data-confirm-label="Record payment"
+                        >
+                          Record payment
+                        </SubmitButton>
+                      </ValidatedForm>
+                    )}
+                    {s.payouts.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-small font-semibold">Payment history ({s.payouts.length})</summary>
+                        <ul className="mt-2 flex flex-col gap-1.5 text-small">
+                          {s.payouts.map((po) => (
+                            <li key={po.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                              <span>
+                                {shortDate(po.paid_at)} · <span className="num font-semibold">{peso(Number(po.amount))}</span> · {po.voucher_count} voucher
+                                {po.voucher_count === 1 ? "" : "s"} · {PAYOUT_METHODS[po.method]} ref <span className="num">{po.reference}</span>
+                              </span>
+                              <span className={STATUS[po.status].tone}>{STATUS[po.status].label}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -365,12 +496,30 @@ export default async function AdminPage() {
         </Section>
 
         <Section title="Barangay">
-          <ValidatedForm action={renameBarangay} schema="barangayName" className="flex flex-col gap-4 md:max-w-md">
-            <Field label="Barangay name" id="barangay_name" name="name" defaultValue={viewer.barangayName} required maxLength={80} />
-            <SubmitButton variant="secondary" pendingText="Saving…">
-              Save name
-            </SubmitButton>
-          </ValidatedForm>
+          <div className="grid items-start gap-6 md:grid-cols-2">
+            <ValidatedForm action={renameBarangay} schema="barangayName">
+              <Field label="Barangay name" id="barangay_name" name="name" defaultValue={viewer.barangayName} required maxLength={80} />
+              <SubmitButton variant="secondary" pendingText="Saving…">
+                Save name
+              </SubmitButton>
+            </ValidatedForm>
+            <ValidatedForm action={saveBudget} schema="budget">
+              <Field
+                label="Monthly voucher budget (₱)"
+                name="voucher_budget"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="1000000"
+                step="1"
+                defaultValue={budget ?? ""}
+                hint="Leave blank for no limit."
+              />
+              <SubmitButton variant="secondary" pendingText="Saving…">
+                Save budget
+              </SubmitButton>
+            </ValidatedForm>
+          </div>
         </Section>
       </main>
     </div>

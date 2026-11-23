@@ -58,6 +58,11 @@ async function enterBill(page, { account, kwh, amount, baseline }) {
   await page.getByRole("article", { name: "Itemized receipt" }).waitFor();
 }
 
+// The run changes the shared barangay's voucher budget; remember it so the finally block restores it.
+const { data: barangayRow } = await admin.from("barangays").select("id, voucher_budget").order("created_at").limit(1).single();
+const barangayId = barangayRow.id;
+const budgetBefore = barangayRow.voucher_budget;
+
 const browser = await chromium.launch({ channel: "msedge", headless: true });
 try {
   step("Landing page");
@@ -276,6 +281,142 @@ try {
   await s.getByText(/Already used on/).waitFor();
   ok("second redeem rejected");
 
+  step("Store payouts: record, confirm, dispute");
+  const { data: storeRow } = await admin.from("stores").select("id, barangay_id").eq("name", storeName).single();
+  const storeId = storeRow.id;
+  const unredeemed = async () => (await admin.from("vouchers").select("code").eq("store_id", storeId).is("redeemed_at", null)).data.map((r) => r.code);
+  const redeemCode = async (c) => {
+    await s.goto(`${BASE}/store`);
+    await s.getByLabel("Voucher code").fill(c);
+    await s.getByRole("button", { name: "Redeem" }).click();
+    await s.getByText("Voucher accepted").waitFor();
+  };
+  for (const c of await unredeemed()) await redeemCode(c);
+  const storeRowOnAdmin = () => ad.locator("li", { hasText: storeName }).filter({ hasText: "Unpaid" });
+  await ad.goto(`${BASE}/admin`);
+  await storeRowOnAdmin().getByText("₱100.00").first().waitFor();
+  ok("both vouchers redeemed: admin sees Unpaid ₱100.00");
+
+  // A second admin tab with the same form open: after the first records, the stale one gets "nothing to pay".
+  const ad2 = await ad.context().newPage();
+  await ad2.goto(`${BASE}/admin`);
+  for (const [page, ref] of [
+    [ad, "E2E-GCASH-1"],
+    [ad2, "E2E-GCASH-2"],
+  ]) {
+    await page.locator("li", { hasText: storeName }).getByLabel("Reference").fill(ref);
+  }
+  const recordOn = async (page) => {
+    await page.locator("li", { hasText: storeName }).getByRole("button", { name: "Record payment" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Record payment" }).click();
+  };
+  await recordOn(ad);
+  await ad.getByText(/Recorded ₱100\.00 for 2 vouchers/).waitFor();
+  await recordOn(ad2);
+  await ad2.getByText("Nothing to pay: this store has no unpaid redeemed vouchers.").waitFor();
+  await ad2.close();
+  await ad.reload();
+  await storeRowOnAdmin().getByText("waiting for the store to confirm").waitFor();
+  ok("payment recorded once; Unpaid back to ₱0; a stale second submit says nothing to pay");
+
+  await s.goto(`${BASE}/store`);
+  await s.getByText("Payments to confirm").waitFor();
+  await s.getByRole("button", { name: "I received it" }).click();
+  await s.getByRole("dialog").getByRole("button", { name: "I received it" }).click();
+  await s.getByText("Payment confirmed").waitFor();
+  await s.reload();
+  assert.equal(await s.getByText("Payments to confirm").count(), 0);
+  await s.getByRole("heading", { name: "Payment history" }).waitFor();
+  await ad.reload();
+  await storeRowOnAdmin().locator("summary", { hasText: "Payment history" }).click();
+  await storeRowOnAdmin().getByText("Confirmed").waitFor();
+  ok("store confirms; both sides show Confirmed");
+
+  // Third voucher, then two payout calls at the same moment as the admin: only one may succeed.
+  await ad.getByLabel("Store", { exact: true }).selectOption({ label: storeName });
+  await ad.getByLabel("Vouchers").fill("1");
+  await ad.getByRole("button", { name: "Issue vouchers" }).click();
+  await ad.getByRole("dialog").getByRole("button", { name: "Issue vouchers" }).click();
+  await ad.getByText(/1 voucher issued to/).waitFor();
+  const [third] = await unredeemed();
+  await redeemCode(third);
+  await ad.reload();
+  await storeRowOnAdmin().getByText("₱50.00").first().waitFor();
+  ok("a voucher redeemed after the payout is the only one unpaid");
+
+  const signedIn = async (who) => {
+    const c = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } });
+    const { error } = await c.auth.signInWithPassword({ email: email(who), password: PASSWORD });
+    if (error) throw error;
+    return c;
+  };
+  const asAdmin = await signedIn("admin");
+  const both = await Promise.all([1, 2].map(() => asAdmin.rpc("record_payout", { p_store_id: storeId, p_method: "cash", p_reference: "OR-0003" })));
+  const succeeded = both.filter((r) => !r.error);
+  assert.equal(succeeded.length, 1, `exactly one concurrent payout may succeed: ${JSON.stringify(both.map((r) => r.error?.message ?? "ok"))}`);
+  assert.equal(Number(succeeded[0].data[0].amount), 50);
+  assert.match(both.find((r) => r.error).error.message, /nothing to pay/);
+  const thirdPayoutId = succeeded[0].data[0].payout_id;
+  ok("two payout calls at once: one pays ₱50, the other gets nothing to pay");
+
+  const asResident = await signedIn("a");
+  const { data: residentSees } = await asResident.from("payouts").select("id");
+  assert.equal(residentSees.length, 0, "a resident must not read payouts");
+  const { error: residentRecord } = await asResident.rpc("record_payout", { p_store_id: storeId, p_method: "cash", p_reference: "OR-HACK" });
+  assert.match(residentRecord?.message ?? "", /not allowed/);
+  const asOtherStore = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } });
+  await makeUser("store2", "store");
+  await asOtherStore.auth.signInWithPassword({ email: email("store2"), password: PASSWORD });
+  const { error: otherAnswer } = await asOtherStore.rpc("respond_payout", { p_payout_id: thirdPayoutId, p_received: true, p_note: "" });
+  assert.match(otherAnswer?.message ?? "", /not found or already answered/);
+  ok("a resident can't read or record payouts; another store can't answer this store's payout");
+
+  await s.goto(`${BASE}/store`);
+  await s.locator("summary", { hasText: "Not received" }).click();
+  await s.getByLabel("What's wrong?").fill("Cash not handed over yet");
+  await s.getByRole("button", { name: "Send to the barangay" }).click();
+  await s.getByRole("dialog").getByRole("button", { name: "Not received" }).click();
+  await s.getByText("Marked as not received").waitFor();
+  await ad.reload();
+  await storeRowOnAdmin().getByText(/was not received: “Cash not handed over yet”/).waitFor();
+  ok("store disputes with a note; the admin sees it");
+
+  step("Monthly voucher budget");
+  const { data: month } = await admin.from("scores").select("score_month").order("score_month", { ascending: false }).limit(1).single();
+  const { data: issuedNow } = await admin
+    .from("vouchers")
+    .select("amount, stores!inner(barangay_id)")
+    .eq("score_month", month.score_month)
+    .eq("stores.barangay_id", storeRow.barangay_id);
+  const usedNow = issuedNow.reduce((sum, v) => sum + Number(v.amount), 0);
+  const issue = async (count, amount) => {
+    await ad.getByLabel("Store", { exact: true }).selectOption({ label: storeName });
+    await ad.getByLabel("Vouchers").fill(String(count));
+    await ad.getByLabel("Amount (₱)").fill(String(amount));
+    await ad.getByText(`This issue: up to ${count} ×`).waitFor();
+    await ad.getByRole("button", { name: "Issue vouchers" }).click();
+    await ad.getByRole("dialog").getByRole("button", { name: "Issue vouchers" }).click();
+  };
+  const setBudget = async (value) => {
+    await ad.getByLabel("Monthly voucher budget (₱)").fill(value);
+    await ad.getByRole("button", { name: "Save budget" }).click();
+    await ad.getByText(value ? "Monthly voucher budget set" : "Budget cleared").first().waitFor();
+    await ad.reload();
+  };
+  await setBudget(String(usedNow + 155));
+  await ad.getByText(/Budget this month:/).waitFor();
+  await issue(3, 50);
+  await ad.getByText(/3 vouchers issued to/).waitFor();
+  await ad.reload();
+  await issue(1, 10);
+  await ad.getByText(/This would go over the ₱[\d,.]+ monthly budget\. ₱5\.00 is left\./).waitFor();
+  ok("budget: 3 × ₱50 fits, then 1 × ₱10 is blocked with the amount left");
+  await setBudget("");
+  assert.equal(await ad.getByText(/Budget this month:/).count(), 0, "no budget line without a cap");
+  await issue(1, 10);
+  await ad.getByText(/1 voucher issued to/).waitFor();
+  ok("budget cleared: issuing works again");
+
   step("Profile name and theme persist");
   await a.goto(`${BASE}/profile`);
   await a.getByRole("textbox", { name: "Name" }).fill("Mang Jun");
@@ -312,6 +453,15 @@ try {
   console.log("\nALL E2E CHECKS PASSED");
 } finally {
   await browser.close();
+  // Put the shared barangay's budget back, and remove this run's payouts: the app never deletes
+  // payouts (audit trail), and they would block deleting the throwaway store and admin accounts.
+  await admin.from("barangays").update({ voucher_budget: budgetBefore }).eq("id", barangayId);
+  const { data: e2eStores } = await admin.from("stores").select("id").in("owner_profile_id", createdUsers.length ? createdUsers : ["00000000-0000-0000-0000-000000000000"]);
+  const storeIds = (e2eStores ?? []).map((st) => st.id);
+  if (storeIds.length) {
+    await admin.from("vouchers").update({ payout_id: null }).in("store_id", storeIds);
+    await admin.from("payouts").delete().in("store_id", storeIds);
+  }
   for (const id of createdUsers) await admin.auth.admin.deleteUser(id);
   // Stores/vouchers cascade with their owner's profile.
 }

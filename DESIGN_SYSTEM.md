@@ -160,9 +160,12 @@ Non-negotiable. Every visual element has a purpose; every interaction does somet
 - **Primary:** scan or type a voucher code → Redeem.
 - **Error:** already used → "Used on <date> at <store>"; expired; not for this store. Each is a distinct, clear message.
 - **Success:** large confirmation with amount to discount.
+- **Payments:** pending payouts appear as cards above "Redeemed here" ("₱X from the barangay · date · method ref"), with "I received it" (primary, confirm dialog) and "Not received" (secondary, opens a required note, confirm dialog). "Redeemed here" opens with "Waiting for payment" and "Paid"; each voucher row says Unpaid, Pending, Paid or Disputed. Empty: no cards and no history section.
 
 ### Admin (barangay)
 - **Primary:** approve/reject flagged bills. **Secondary:** set monthly voucher pool; approve store sign-ups; add AI fallback providers.
+- **Partner stores:** each row shows Unpaid (bold) and Paid (muted), any pending payout as a muted line, a disputed one as a warning Notice with the store's note, a "Record payment" form only when Unpaid > 0, and a `<details>` payment history with status in `success` / `warning` / `muted`.
+- **Voucher budget:** "Budget this month: ₱X of ₱Y used, ₱Z left" above the issue form; a live "This issue: up to N × ₱A = ₱T" line under the fields; when nothing is left, a warning Notice and a disabled Issue button.
 - **AI providers:** the chain is a numbered list (server settings, added providers with last test result, manual entry). The add form unlocks "Add to the chain" only after "Run test" passes; the log is a mono list on `surface-2`, verdict line in `success`/`error`.
 - **Empty:** "No bills to review."
 - **Success:** toast + the row leaves the queue.

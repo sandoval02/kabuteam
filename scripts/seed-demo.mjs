@@ -82,3 +82,28 @@ if (storeId) {
   await db.from("stores").insert({ barangay_id: sp.barangay_id, name: "Aling Nena Sari-sari Store", owner_profile_id: storeId, approved_at: new Date().toISOString() });
   console.log("created store@tipidtayo.test → Aling Nena Sari-sari Store");
 } else console.log("skip store@tipidtayo.test (exists)");
+
+// Demo store payouts (once): September vouchers redeemed at the demo store, one payment the store
+// confirmed and one still waiting for it. Seeded directly with the secret key; in the app, payouts
+// are only written by the record_payout / respond_payout database functions.
+const { data: demoStore } = await db.from("stores").select("id").eq("name", "Aling Nena Sari-sari Store").maybeSingle();
+const { data: everyone } = await db.auth.admin.listUsers({ perPage: 1000 });
+const demoAdmin = everyone.users.find((u) => u.email === "admin@tipidtayo.test");
+const { count: payoutCount } = demoStore ? await db.from("payouts").select("id", { count: "exact", head: true }).eq("store_id", demoStore.id) : { count: 1 };
+if (demoStore && demoAdmin && !payoutCount) {
+  const { data: homes } = await db.from("households").select("id").in("account_number", ["1100000001", "2200000002", "3300000003"]);
+  const code = () => Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+  const { data: vs, error: vErr } = await db
+    .from("vouchers")
+    .insert(homes.map((h, i) => ({ code: code(), household_id: h.id, store_id: demoStore.id, amount: 50, score_month: "2026-09", expires_at: "2026-11-30T00:00:00Z", redeemed_at: `2026-10-0${3 + i}T09:00:00Z` })))
+    .select("id");
+  if (vErr) throw vErr;
+  const pay = async (row, voucherIds) => {
+    const { data, error } = await db.from("payouts").insert({ store_id: demoStore.id, recorded_by: demoAdmin.id, voucher_count: voucherIds.length, amount: 50 * voucherIds.length, ...row }).select("id").single();
+    if (error) throw error;
+    await db.from("vouchers").update({ payout_id: data.id }).in("id", voucherIds);
+  };
+  await pay({ method: "gcash", reference: "GC-8841-2207", paid_at: "2026-10-20T10:00:00Z", status: "confirmed", responded_at: "2026-10-21T08:30:00Z" }, vs.slice(0, 2).map((v) => v.id));
+  await pay({ method: "cash", reference: "OR-00127", paid_at: "2026-11-05T09:00:00Z" }, vs.slice(2).map((v) => v.id));
+  console.log("created demo payouts: ₱100 confirmed, ₱50 waiting for the store");
+} else console.log("skip demo payouts (exist)");

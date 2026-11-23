@@ -29,6 +29,14 @@
 - Google button on the sign-in page with a Google account that has no Kuryentipid account → told to create one first
 - Admin → Photo reading (AI): a wrong key fails with a readable log and Add stays locked; a working key passes, Add unlocks, and editing any field locks it again until a new test
 - Homepage month strip: after scrolling down, Oct 1 returns to the very top and is highlighted
+- Store payouts (seeded demo has one confirmed and one pending payout):
+  1. Issue 2 vouchers; redeem both at a store → admin sees Unpaid ₱100.
+  2. Record the payment → Unpaid ₱0 and a pending payout on both sides.
+  3. Store taps "I received it" → both sides show Confirmed.
+  4. Redeem a 3rd voucher → only that one is Unpaid.
+  5. Record it; the store taps "Not received" with a note → the admin sees the note in amber.
+  6. Negative: submitting a stale "Record payment" when nothing is unpaid → "Nothing to pay"; another store can't answer this payout; a resident reads no payouts; two simultaneous recordings pay the vouchers once.
+- Monthly voucher budget: set it so ₱155 is left; issue 3 × ₱50 → works; issue 1 × ₱10 → blocked with the amount left; clear the budget → issuing works again. A fully used budget disables Issue and shows a notice.
 
 ## Automated tests
 

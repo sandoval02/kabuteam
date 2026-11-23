@@ -27,11 +27,31 @@ export default function AdminLoading() {
             <Skeleton className="mb-2.5 h-6 w-36" />
             <Skeleton className="h-48 w-full rounded-md" />
           </section>
+          {/* Partner stores: name, Unpaid / Paid, then the record-payment form */}
           <section>
             <Skeleton className="mb-2.5 h-6 w-32" />
-            <Skeleton className="h-32 w-full rounded-md" />
+            <div className="rounded-md bg-surface p-4 shadow-receipt">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="mt-1.5 h-3 w-20" />
+                </div>
+                <div className="flex flex-col items-end">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="mt-1.5 h-3 w-20" />
+                </div>
+              </div>
+              <Skeleton className="mt-4 h-10 w-full rounded-sm" />
+              <Skeleton className="mt-3 h-10 w-full rounded-full" />
+            </div>
           </section>
         </div>
+
+        {/* Barangay: name and monthly voucher budget side by side */}
+        <section aria-hidden className="mt-8 grid gap-6 md:grid-cols-2">
+          <Skeleton className="h-24 w-full rounded-md" />
+          <Skeleton className="h-24 w-full rounded-md" />
+        </section>
       </main>
     </div>
   );

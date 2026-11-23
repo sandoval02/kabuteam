@@ -51,10 +51,11 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 - [x] Seed demo barangay with realistic households: `npm run seed:demo` (7 households, 1 flagged bill for the review demo)
 - [x] Fix blockers only (redeem function ambiguity, missing grants, form reset bug, stale-CSS issue)
 - [x] Room check: TipidWatch's live-camera energy check as a third Scan tab (shared AI chain and cap, ₱/hour from the bill, photos never stored), with e2e coverage through a fake camera
-- [x] Room check alerts resolve by tap (**Mark resolved**) or automatically when the next readable check no longer sees the device
+- [x] Room check alerts resolve by tap (**Mark resolved**) or automatically when the next readable check sees someone in the room or no longer sees the device
 - [x] Room check: one open alert per continuous left-on event, with a live monitored time and estimated kWh/₱ that freezes when resolved
 - [x] Room check: resolved estimates saved to `room_alerts` and shown as **Wasted this month**
 - [x] Room check: the month's alert list is saved (open and resolved, with devices) and restored after refresh
+- [x] Room check: AI marks plugged/unplugged/unknown, a per-device **Plugged in** toggle overrides it, and unplugged devices add no kWh/₱
 - [x] Run `npm run db:migrate` for `room_alerts` (applied)
 - [ ] Room check on a real phone over HTTPS, per [TESTING.md](TESTING.md) **(you)**
 

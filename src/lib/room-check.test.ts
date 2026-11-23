@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   addMonthWaste,
   costPerHour,
+  deviceLabels,
   durationLabel,
   monitoredConsumption,
   monitoredMs,
@@ -13,10 +14,17 @@ import {
   type RoomEntry,
 } from "./room-check.ts";
 
-const device = (type: string, label = type, pesosPerHour: number | null = 1.26, watts = 100) => ({
+const device = (
+  type: string,
+  label = type,
+  pesosPerHour: number | null = 1.26,
+  watts = 100,
+  pluggedIn: boolean | null = true,
+) => ({
   type,
   label,
   watts,
+  pluggedIn,
   pesosPerHour,
 });
 
@@ -54,20 +62,38 @@ test("cost per hour: sums devices only when the bill rate exists", () => {
   assert.equal(costPerHour(check()), null);
 });
 
+test("unplugged devices are excluded from cost and consumption but still labelled", () => {
+  const laptop = device("computer", "Laptop", 1.884, 150, false);
+  const tv = device("tv", "TV", 1.26, 100, true);
+  assert.equal(costPerHour(check({ devices: [laptop] })), 0);
+  assert.equal(costPerHour(check({ devices: [laptop, tv] })), 1.26);
+  const energy = monitoredConsumption(waste([laptop]), 3_600_000);
+  assert.equal(energy.kwh, 0);
+  assert.equal(energy.pesos, 0);
+  assert.match(deviceLabels(check({ devices: [laptop] })), /not plugged in/);
+});
+
 test("a later readable check resolves alerts whose devices are no longer on", () => {
   const old = entry(1, { ...waste() });
   const resolved = resolveAlerts([old], check({ devices: [device("light", "Lights")] }), 5);
   assert.equal(resolved[0].resolvedAt, 5);
 });
 
-test("an alert stays open while any of its devices is still on", () => {
+test("an alert stays open while any of its devices is still on and nobody is there", () => {
   const old = entry(1, { ...waste([device("tv", "TV"), device("light", "Lights")]) });
   assert.equal(resolveAlerts([old], check({ devices: [device("light", "Lights")] }), 5)[0].resolvedAt, null);
 });
 
-test("an unreadable check resolves nothing", () => {
+test("a readable check with someone present resolves the alert even if its device is still on", () => {
+  const old = entry(1, { ...waste() });
+  const resolved = resolveAlerts([old], check({ peoplePresent: true, devices: [device("tv", "TV")] }), 5);
+  assert.equal(resolved[0].resolvedAt, 5);
+});
+
+test("an unreadable check resolves nothing, even if a person was detected", () => {
   const old = entry(1, { ...waste() });
   assert.equal(resolveAlerts([old], check({ readable: false }), 5)[0].resolvedAt, null);
+  assert.equal(resolveAlerts([old], check({ readable: false, peoplePresent: true }), 5)[0].resolvedAt, null);
 });
 
 test("repeat waste checks keep one open alert with the original detection time", () => {
@@ -77,6 +103,12 @@ test("repeat waste checks keep one open alert with the original detection time",
   assert.equal(second.length, 1);
   assert.equal(second[0].at, 1_000);
   assert.equal(second[0].devices.length, 2);
+});
+
+test("a repeat check keeps the alert's plug state over a new AI read", () => {
+  const first = nextChecks([], waste([device("computer", "Computer", 1.884, 150, false)]), 1_000);
+  const second = nextChecks(first, waste([device("computer", "Computer", 1.884, 150, true)]), 61_000);
+  assert.equal(second[0].devices[0].pluggedIn, false);
 });
 
 test("a different device opens a new alert and resolves the old one", () => {

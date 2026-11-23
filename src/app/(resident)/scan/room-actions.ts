@@ -10,20 +10,25 @@ const device = z.object({
   type: z.enum(applianceTypeKeys),
   label: z.string().trim().min(1).max(60),
   watts: z.number().finite().nonnegative().max(20000),
+  pluggedIn: z.boolean().nullable(),
   pesosPerHour: z.number().finite().nonnegative().max(1000).nullable(),
 });
+
+const devices = z.array(device).min(1).max(10);
 
 const input = z
   .object({
     startedAt: z.iso.datetime(),
     resolvedAt: z.iso.datetime().nullable(),
-    devices: z.array(device).min(1).max(10),
+    devices,
     kwh: z.number().finite().nonnegative().max(1000).nullable(),
     pesos: z.number().finite().nonnegative().max(100000).nullable(),
   })
   .refine((v) => (v.resolvedAt === null ? v.kwh === null && v.pesos === null : v.kwh !== null), {
     message: "Resolve the alert with its kWh.",
   });
+
+const updateInput = z.object({ startedAt: z.iso.datetime(), devices });
 
 export type SaveRoomAlertResult = { ok: true } | { ok: false; error: string };
 
@@ -60,6 +65,24 @@ export async function saveRoomAlert(raw: unknown): Promise<SaveRoomAlertResult> 
   if (error) {
     console.error("[saveRoomAlert]", error);
     return { ok: false, error: "Could not save the Room check alert." };
+  }
+  return { ok: true };
+}
+
+export async function updateRoomAlertDevices(raw: unknown): Promise<SaveRoomAlertResult> {
+  const viewer = await requireViewer("resident");
+  const parsed = updateInput.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Could not save the plugged-in state." };
+
+  const { error } = await createAdminClient()
+    .from("room_alerts")
+    .update({ devices: parsed.data.devices })
+    .eq("household_id", viewer.householdId)
+    .eq("started_at", parsed.data.startedAt)
+    .is("resolved_at", null);
+  if (error) {
+    console.error("[updateRoomAlertDevices]", error);
+    return { ok: false, error: "Could not save the plugged-in state." };
   }
   return { ok: true };
 }

@@ -1,19 +1,31 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Vector3, type Mesh } from "three";
 import { EXAMPLE_HOUSES, EXAMPLE_WINNER } from "./example-data";
 
 // Colors mirror the design tokens (three.js can't read CSS variables).
-const C = { wall: "#ffffff", roof: "#121412", bar: "#2b2f2b", winner: "#c6f432" };
+type Palette = { wall: string; roof: string; bar: string; winner: string };
+const LIGHT: Palette = { wall: "#ffffff", roof: "#121412", bar: "#2b2f2b", winner: "#c6f432" };
+const DARK: Palette = { wall: "#242424", roof: "#6b6b6b", bar: "#ededed", winner: "#c6f432" };
 const BAR_SCALE = 0.17; // world units per % point
 const xOf = (i: number) => (i - (EXAMPLE_HOUSES.length - 1) / 2) * 2.6;
 
 type Labels = (HTMLDivElement | null)[];
 
-function House({ index, reduced, onHover }: { index: number; reduced: boolean; onHover: (i: number | null) => void }) {
+function House({
+  index,
+  reduced,
+  colors,
+  onHover,
+}: {
+  index: number;
+  reduced: boolean;
+  colors: Palette;
+  onHover: (i: number | null) => void;
+}) {
   const h = EXAMPLE_HOUSES[index];
   const bar = useRef<Mesh>(null);
   const target = Math.max(h.score, 0.5) * BAR_SCALE;
@@ -40,15 +52,21 @@ function House({ index, reduced, onHover }: { index: number; reduced: boolean; o
     >
       <mesh position={[0, s / 2, 0.9]} castShadow receiveShadow>
         <boxGeometry args={[s * 1.3, s, s * 1.1]} />
-        <meshStandardMaterial color={C.wall} roughness={0.9} />
+        <meshStandardMaterial color={colors.wall} roughness={0.9} />
       </mesh>
       <mesh position={[0, s + s * 0.35, 0.9]} rotation={[0, Math.PI / 4, 0]} castShadow>
         <coneGeometry args={[s * 0.98, s * 0.7, 4]} />
-        <meshStandardMaterial color={C.roof} roughness={0.8} />
+        <meshStandardMaterial color={colors.roof} roughness={0.8} />
       </mesh>
-      <mesh ref={bar} name={`bar-${index}`} position={[s * 0.65 + 0.4, 0, 0.9]} scale={[1, reduced ? target : 0.001, 1]} castShadow>
+      <mesh
+        ref={bar}
+        name={`bar-${index}`}
+        position={[s * 0.65 + 0.4, reduced ? target / 2 : 0.001, 0.9]}
+        scale={[1, reduced ? target : 0.001, 1]}
+        castShadow
+      >
         <boxGeometry args={[0.45, 1, 0.45]} />
-        <meshStandardMaterial color={isWinner ? C.winner : C.bar} roughness={0.6} />
+        <meshStandardMaterial color={isWinner ? colors.winner : colors.bar} roughness={0.6} />
       </mesh>
     </group>
   );
@@ -81,32 +99,53 @@ const subscribeNarrow = (cb: () => void) => {
   return () => mq.removeEventListener("change", cb);
 };
 
-export default function BarangayScene({ reduced }: { reduced: boolean }) {
+export default function BarangayScene({ reduced, dark }: { reduced: boolean; dark: boolean }) {
   // Phones get a camera further back so the whole street fits the narrower frame.
   const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
   const distance = narrow ? 24 : 19;
   const labels = useRef<Labels>([]);
+  const container = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState<number | null>(null);
+  const [visible, setVisible] = useState(true);
+  const colors = dark ? DARK : LIGHT;
+
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.05 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
-      <Canvas shadows dpr={[1, 2]} aria-hidden>
+    <div ref={container} className="relative h-full w-full overflow-hidden">
+      <Canvas
+        shadows={!narrow}
+        dpr={narrow ? 1 : [1, 1.5]}
+        frameloop={reduced || narrow ? "demand" : visible ? "always" : "demand"}
+        aria-hidden
+      >
         <PerspectiveCamera makeDefault key={distance} position={[0.6, (5.5 * distance) / 19, distance]} fov={32} />
         <ambientLight intensity={1.4} />
-        <directionalLight position={[5, 10, 6]} intensity={2.2} castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight
+          position={[5, 10, 6]}
+          intensity={2.2}
+          castShadow={!narrow}
+          shadow-mapSize={narrow ? [512, 512] : [1024, 1024]}
+        />
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[200, 200]} />
           {/* Shadows only: the houses sit directly on the page background. */}
-          <shadowMaterial opacity={0.16} />
+          <shadowMaterial opacity={dark ? 0.28 : 0.16} />
         </mesh>
         {EXAMPLE_HOUSES.map((h, i) => (
-          <House key={h.label} index={i} reduced={reduced} onHover={setHovered} />
+          <House key={h.label} index={i} reduced={reduced || narrow} colors={colors} onHover={setHovered} />
         ))}
         <LabelTracker labels={labels} />
         <OrbitControls
           enableZoom={false}
           enablePan={false}
-          autoRotate={!reduced}
+          autoRotate={!reduced && !narrow}
           autoRotateSpeed={0.6}
           minPolarAngle={0.6}
           maxPolarAngle={1.25}

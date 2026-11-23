@@ -2,8 +2,7 @@ import Link from "next/link";
 import { Award, Ticket, ShieldCheck, Zap } from "lucide-react";
 import { CtaLabel, IconTile, buttonStyles } from "@/components/ui";
 import { HeroScene } from "./hero-scene";
-import { PrintingReceipt } from "./printing-receipt";
-import { FairScoreDemo } from "./fair-score-demo";
+import { LazyFairScoreDemo, LazyPrintingReceipt } from "./lazy-sections";
 
 const BADGES = [
   { name: "First Scan", body: "Scanned a first bill" },
@@ -15,8 +14,8 @@ const BADGES = [
 export function Landing() {
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-3 z-50 mx-auto mt-3 flex h-15 w-[min(1120px,calc(100%-1.5rem))] items-center justify-between gap-4 rounded-full bg-surface/85 pl-5 pr-2 shadow-sheet backdrop-blur-xl backdrop-saturate-150">
-        <p className="font-display text-[1.15rem] font-bold tracking-wide">
+      <header className="sticky top-3 z-50 mx-auto mt-3 flex h-15 w-[calc(100%-1.5rem)] max-w-landing items-center justify-between gap-4 rounded-full bg-surface/85 pl-5 pr-2 shadow-sheet backdrop-blur-xl backdrop-saturate-150">
+        <p className="font-display text-h2 font-bold tracking-wide">
           Tipid<span className="ml-0.5 rounded-md bg-lime px-1.5 py-0.5 text-on-lime">Tayo</span>
         </p>
         <nav aria-label="Account" className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -31,12 +30,10 @@ export function Landing() {
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-[1120px] items-center gap-8 px-4 pb-16 pt-8 md:grid-cols-[1fr_1.15fr] md:px-6 md:pt-16">
+        <section className="mx-auto grid max-w-landing items-center gap-8 px-4 pb-16 pt-8 md:grid-cols-[1fr_1.15fr] md:px-6 md:pt-16">
           <div>
-            <h1 className="text-[2.5rem] font-semibold leading-[1.1] tracking-tight md:text-[3.5rem]">
-              Your electric bill, itemized.
-            </h1>
-            <p className="mt-4 max-w-[46ch] text-[1.125rem] leading-7 text-muted">
+            <h1 className="text-hero font-semibold tracking-tight">Your electric bill, itemized.</h1>
+            <p className="mt-4 max-w-[46ch] text-lead text-muted">
               Photograph your Meralco bill and appliance stickers. See what each appliance costs you every month, then compete with your
               barangay on <strong className="text-text">% saved</strong>, not raw kWh, for sari-sari store vouchers.
             </p>
@@ -53,23 +50,23 @@ export function Landing() {
         </section>
 
         <section aria-labelledby="how" className="border-y border-border bg-surface">
-          <div className="mx-auto max-w-[1120px] px-4 py-16 md:px-6 md:py-24">
-            <h2 id="how" className="mb-10 text-[1.75rem] font-semibold tracking-tight md:text-[2.25rem]">
+          <div className="mx-auto max-w-landing px-4 py-16 md:px-6 md:py-24">
+            <h2 id="how" className="mb-10 text-section font-semibold tracking-tight">
               One number becomes a receipt.
             </h2>
-            <PrintingReceipt />
+            <LazyPrintingReceipt />
           </div>
         </section>
 
-        <section id="fair" aria-labelledby="fair-title" className="mx-auto max-w-[1120px] scroll-mt-8 px-4 py-16 md:px-6 md:py-24">
-          <h2 id="fair-title" className="text-[1.75rem] font-semibold tracking-tight md:text-[2.25rem]">
+        <section id="fair" aria-labelledby="fair-title" className="mx-auto max-w-landing scroll-mt-8 px-4 py-16 md:px-6 md:py-24">
+          <h2 id="fair-title" className="text-section font-semibold tracking-tight">
             A small house can beat a mansion.
           </h2>
           <p className="mb-6 mt-3 max-w-[60ch] text-muted">
             Everyone competes against their own usage in the same month last year, read from the chart on their own bill. Move the sliders:
             this is the exact formula the ranking uses.
           </p>
-          <FairScoreDemo />
+          <LazyFairScoreDemo />
           <ul className="mt-10 grid gap-4 md:grid-cols-3">
             <li className="flex gap-3 rounded-md bg-surface p-4 shadow-receipt">
               <IconTile icon={ShieldCheck} />
@@ -93,9 +90,9 @@ export function Landing() {
         </section>
 
         <section aria-labelledby="rewards" className="border-t border-border bg-surface">
-          <div className="mx-auto grid max-w-[1120px] gap-10 px-4 py-16 md:grid-cols-2 md:px-6 md:py-24">
+          <div className="mx-auto grid max-w-landing gap-10 px-4 py-16 md:grid-cols-2 md:px-6 md:py-24">
             <div>
-              <h2 id="rewards" className="text-[1.75rem] font-semibold tracking-tight md:text-[2.25rem]">
+              <h2 id="rewards" className="text-section font-semibold tracking-tight">
                 Tipid ka, may premyo.
               </h2>
               <p className="mt-3 text-muted">
@@ -128,8 +125,8 @@ export function Landing() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[1120px] px-4 py-16 text-center md:px-6 md:py-24">
-          <h2 className="mx-auto max-w-[24ch] text-[1.75rem] font-semibold tracking-tight md:text-[2.25rem]">
+        <section className="mx-auto max-w-landing px-4 py-16 text-center md:px-6 md:py-24">
+          <h2 className="mx-auto max-w-[24ch] text-section font-semibold tracking-tight">
             The cheapest kilowatt-hour is the one you don&apos;t use.
           </h2>
           <p className="mt-4 inline-flex rounded-full bg-primary-soft px-3 py-1 text-small font-semibold text-primary">

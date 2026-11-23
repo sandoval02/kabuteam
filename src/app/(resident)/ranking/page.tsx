@@ -3,6 +3,8 @@ import { BADGES, getLeaderboard, monthLabel } from "@/lib/data";
 import { Notice, PageTitle } from "@/components/ui";
 import { RankingList } from "./ranking-list";
 
+export const metadata = { title: "Ranking · TipidTayo" };
+
 export default async function RankingPage() {
   const viewer = await requireViewer("resident");
   const { month, rows } = await getLeaderboard(viewer.barangayId);

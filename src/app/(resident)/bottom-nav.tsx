@@ -26,7 +26,7 @@ export function BottomNav() {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-14 flex-col items-center justify-center gap-0.5 text-[0.6875rem] leading-none ${active ? "font-semibold text-primary" : "text-muted"}`}
+                className={`flex h-14 flex-col items-center justify-center gap-0.5 text-small leading-none ${active ? "font-semibold text-primary" : "text-muted"}`}
               >
                 <span className={`flex h-6 w-10 items-center justify-center rounded-full transition-colors duration-100 ${active ? "bg-primary-soft" : ""}`}>
                   <Icon size={18} strokeWidth={1.75} aria-hidden />

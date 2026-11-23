@@ -1,14 +1,17 @@
 import Link from "next/link";
-import { ArrowLeft, Hash, House, LogOut, Mail, MapPin, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, Hash, House, Mail, MapPin, ShieldCheck, UserRound } from "lucide-react";
 import { homeFor, requireViewer } from "@/lib/auth";
-import { AppHeader, currentTheme } from "@/components/app-header";
+import { AppHeader } from "@/components/app-header";
+import { currentTheme } from "@/lib/theme";
 import { ValidatedForm } from "@/components/form";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Field } from "@/components/ui";
-import { signOut } from "@/app/login/actions";
+import { SignOutForm } from "@/components/sign-out-form";
 import { AvatarEditor } from "./avatar-editor";
 import { updateName } from "./actions";
+
+export const metadata = { title: "Profile · TipidTayo" };
 
 const ROLE_LABEL = { resident: "Resident", store: "Partner store", admin: "Barangay admin" } as const;
 
@@ -90,19 +93,7 @@ export default async function ProfilePage() {
         </section>
 
         <section className="rounded-md bg-surface p-3.5 shadow-receipt">
-          <ValidatedForm action={signOut} className="contents">
-            <button
-              type="submit"
-              data-confirm-title="Sign out?"
-              data-confirm-body="You'll need your email and password to sign in again."
-              data-confirm-label="Sign out"
-              data-confirm-tone="destructive"
-              className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full font-semibold text-error hover:bg-error-bg"
-            >
-              <LogOut size={14} strokeWidth={1.75} aria-hidden />
-              Sign out
-            </button>
-          </ValidatedForm>
+          <SignOutForm className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full font-semibold text-error hover:bg-error-bg" />
         </section>
       </main>
     </div>

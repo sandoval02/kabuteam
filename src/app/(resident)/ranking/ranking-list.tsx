@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Award } from "lucide-react";
-import { pct } from "@/components/ui";
+import { pct, savingsText } from "@/components/ui";
 
 export type RankingRow = {
   householdId: string;
   label: string;
   score: number;
+  savingsPct: number;
   badges: string[];
 };
 
@@ -63,9 +64,13 @@ export function RankingList({
                 {i + 1}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold">
+                <p className="truncate font-semibold">
                   {r.label}
                   {isMe && <span className="font-normal text-muted"> (you)</span>}
+                </p>
+                <p className="text-small text-muted">
+                  {savingsText(r.savingsPct)}
+                  {r.score > r.savingsPct + 0.05 && <span className="text-muted"> · low-usage floor</span>}
                 </p>
                 {r.badges.length > 0 && (
                   <p className="mt-0.5 flex flex-wrap gap-1">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { usePrefersReducedMotion } from "@/lib/use-media";
 import { fairScore, SAVINGS_CAP } from "@/lib/scoring";
 
 type House = { name: string; lastYear: number; min: number; max: number; start: number };
@@ -12,18 +12,20 @@ const HOUSES: House[] = [
 
 function HouseControl({ house, value, onChange }: { house: House; value: number; onChange: (n: number) => void }) {
   const id = useId();
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const { score, savingsPct, efficient } = fairScore(value, house.lastYear);
   const saved = house.lastYear - value;
   const height = Math.max(0, score) / SAVINGS_CAP;
 
   return (
-    <div className="flex gap-4 rounded-md bg-surface shadow-receipt p-4">
+    <div className="flex gap-4 rounded-md bg-surface p-4 shadow-receipt">
       <div className="flex h-40 w-14 shrink-0 items-end overflow-hidden rounded-sm bg-bg" aria-hidden>
-        <motion.div
+        <div
           className="w-full rounded-sm bg-primary-bright"
-          animate={{ height: `${height * 100}%` }}
-          transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 26 }}
+          style={{
+            height: `${height * 100}%`,
+            transition: reduce ? "none" : "height 450ms cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
         />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">

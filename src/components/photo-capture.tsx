@@ -63,11 +63,18 @@ export function PhotoCapture({
 }
 
 export async function postPhoto<T>(url: string, file: File): Promise<{ data?: T; error?: string }> {
+  let body: FormData;
   try {
-    const body = new FormData();
+    body = new FormData();
     body.append("photo", await resizeImage(file), "photo.jpg");
+  } catch {
+    return { error: "That photo format could not be read. Try a JPEG or PNG photo." };
+  }
+
+  try {
     const res = await fetch(url, { method: "POST", body });
-    const json = await res.json();
+    const json = await res.json().catch(() => null);
+    if (!json) return { error: "The scan service returned an unexpected response. Try again." };
     return res.ok ? { data: json.data as T } : { error: json.error?.message ?? "Something went wrong." };
   } catch {
     return { error: "No connection. Check your internet and try again." };

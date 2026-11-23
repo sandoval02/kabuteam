@@ -1,10 +1,25 @@
 import Link from "next/link";
-import { ArrowLeft, Award, Lightbulb, TriangleAlert } from "lucide-react";
+import { ArrowDownRight, ArrowLeft, ArrowUpRight, Award, Lightbulb, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireViewer } from "@/lib/auth";
-import { BADGES, getAppliances, getBadges, getLatestBill, monthLabel } from "@/lib/data";
+import { BADGES, getAppliances, getBadges, getLatestBill, getScore, monthLabel } from "@/lib/data";
 import { UNACCOUNTED_THRESHOLD, daysInPeriod, reconcile, swapTip } from "@/lib/scoring";
-import { Card, IconTile, Notice, PageTitle, buttonStyles, kwh, peso } from "@/components/ui";
+import { ToastFromParam } from "@/components/form";
+import { Card, IconTile, Notice, PageTitle, buttonStyles, kwh, paybackText, pct, peso } from "@/components/ui";
+
+export const metadata = { title: "Receipt · TipidTayo" };
+
+const SAVED_TOASTS = {
+  approved: { text: "Bill saved. Here's your receipt." },
+  flagged: { text: "Bill saved. The barangay will check it before it counts.", tone: "warning" as const },
+};
+
+const dayLabel = (date: string) =>
+  new Date(`${date}T00:00:00Z`).toLocaleDateString("en-PH", { month: "short", day: "numeric", timeZone: "UTC" });
+
+function periodLabel(start: string, end: string) {
+  return `${dayLabel(start)} – ${dayLabel(end)}, ${end.slice(0, 4)}`;
+}
 
 /** The full itemized receipt, every swap tip and badges. Home shows the summary. */
 export default async function ReceiptPage() {
@@ -12,26 +27,73 @@ export default async function ReceiptPage() {
   const bill = await getLatestBill(viewer.householdId);
   if (!bill) redirect("/home");
 
-  const [appliances, badges] = await Promise.all([getAppliances(viewer.householdId), getBadges(viewer.householdId)]);
+  const [appliances, badges, score] = await Promise.all([
+    getAppliances(viewer.householdId),
+    getBadges(viewer.householdId),
+    getScore(bill.id),
+  ]);
   const receipt = reconcile(
     appliances.map((a) => ({ id: a.id, label: a.label, type: a.type, watts: a.watts, hoursPerDay: a.hours_per_day, isInverter: a.is_inverter })),
     { kwh: bill.kwh, amountDue: bill.amount_due, days: daysInPeriod(bill.period_start, bill.period_end) },
   );
   const tips = receipt.lines.slice(0, 3).map(swapTip);
+  const saving = score?.savingsPct ?? null;
+  const baseline = score?.baseline ?? null;
+  const scoreValue = score?.score ?? null;
+  const reasons = bill.flag_reasons.length ? ` ${bill.flag_reasons.join("; ")}.` : "";
+  const floorApplied = scoreValue !== null && saving !== null && scoreValue > saving + 0.05;
 
   return (
     <>
+      <ToastFromParam param="saved" messages={SAVED_TOASTS} />
       <Link href="/home" className="mb-2 inline-flex h-9 items-center gap-1.5 text-small font-semibold text-muted hover:text-text">
         <ArrowLeft size={12} aria-hidden />
         Home
       </Link>
       <PageTitle sub={`${monthLabel(bill.score_month)} bill`}>Receipt</PageTitle>
 
+      {bill.status !== "approved" && (
+        <div className="mb-3">
+          <Notice tone={bill.status === "flagged" ? "warning" : "error"}>
+            {bill.status === "flagged"
+              ? `The barangay will check this bill before it counts.${reasons}`
+              : `The barangay could not verify this bill, so it is not on the ranking.${reasons} You can scan a corrected bill for the same month.`}
+          </Notice>
+        </div>
+      )}
+
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-sm bg-surface px-3 py-2.5 shadow-receipt">
+        <div className="min-w-0">
+          <p className="text-small text-muted">This bill</p>
+          <p className="num mt-0.5 font-semibold">
+            {kwh(bill.kwh)} · {peso(bill.amount_due)}
+          </p>
+        </div>
+        {saving !== null && baseline !== null ? (
+          <div className="shrink-0 text-right">
+            <p className={`num inline-flex items-center gap-1 font-semibold ${saving >= 0 ? "text-success" : "text-warning"}`}>
+              {saving >= 0 ? <ArrowDownRight size={14} aria-hidden /> : <ArrowUpRight size={14} aria-hidden />}
+              {pct(Math.abs(saving))} {saving >= 0 ? "less" : "more"} than last year
+            </p>
+            <p className="text-small text-muted">Same month last year · {kwh(baseline)}</p>
+            {floorApplied && scoreValue !== null && <p className="text-small text-muted">Score {pct(scoreValue)} · low-usage floor</p>}
+          </div>
+        ) : (
+          <p className="shrink-0 text-right text-small text-muted">
+            {scoreValue !== null
+              ? `Score ${pct(scoreValue)}`
+              : bill.status === "approved"
+                ? "Not scored yet"
+                : "Waiting for review"}
+          </p>
+        )}
+      </div>
+
       <article aria-label="Itemized receipt" className="rounded-md bg-surface p-4 shadow-receipt">
         <header className="border-b border-dashed border-border-strong pb-3 text-center">
           <p className="num font-semibold tracking-wide">{viewer.barangayName.toUpperCase()}</p>
           <p className="num text-small text-muted">
-            {viewer.householdLabel} · {bill.period_start} to {bill.period_end}
+            {viewer.householdLabel} · {periodLabel(bill.period_start, bill.period_end)}
           </p>
           <p className="num text-small text-muted">Rate {peso(receipt.rate)}/kWh</p>
         </header>
@@ -39,7 +101,7 @@ export default async function ReceiptPage() {
         {receipt.lines.length === 0 ? (
           <div className="py-5 text-center">
             <p className="text-muted">Add your appliances to break this bill down.</p>
-            <Link href="/scan" className={`${buttonStyles.secondary} mt-3`}>
+            <Link href="/scan#appliances" className={`${buttonStyles.secondary} mt-3`}>
               Add appliances
             </Link>
           </div>
@@ -47,27 +109,27 @@ export default async function ReceiptPage() {
           <ul className="divide-y divide-dashed divide-border py-1">
             {receipt.lines.map((l) => (
               <li key={l.id} className="flex items-baseline justify-between gap-3 py-2">
-                <span>
+                <span className="min-w-0 break-words">
                   {l.label}
                   <span className="num block text-small text-muted">
                     {kwh(l.kwh)} · {Math.round(l.share * 100)}%
                   </span>
                 </span>
-                <span className="num font-semibold">{peso(l.pesos)}</span>
+                <span className="num shrink-0 font-semibold">{peso(l.pesos)}</span>
               </li>
             ))}
             {receipt.unaccounted && (
               <li className="flex items-baseline justify-between gap-3 py-2 text-warning">
-                <span className="flex gap-2">
+                <span className="flex min-w-0 gap-2">
                   <TriangleAlert size={14} aria-hidden className="mt-0.5 shrink-0" />
-                  <span>
+                  <span className="min-w-0 break-words">
                     Unaccounted
                     <span className="num block text-small">
                       {kwh(receipt.unaccounted.kwh)} · {Math.round(receipt.unaccounted.share * 100)}%
                     </span>
                   </span>
                 </span>
-                <span className="num font-semibold">{peso(receipt.unaccounted.pesos)}</span>
+                <span className="num shrink-0 font-semibold">{peso(receipt.unaccounted.pesos)}</span>
               </li>
             )}
           </ul>
@@ -98,16 +160,17 @@ export default async function ReceiptPage() {
           <ul className="flex flex-col gap-2.5">
             {tips.map((t) => {
               const line = receipt.lines.find((l) => l.id === t.lineId)!;
+              const payback = paybackText(t.paybackMonths);
               return (
                 <li key={t.lineId}>
                   <Card className="flex gap-3">
                     <IconTile icon={Lightbulb} tone="gold" />
                     <div className="min-w-0">
-                      <p className="font-semibold">{line.label}</p>
+                      <p className="break-words font-semibold">{line.label}</p>
                       <p className="text-small text-muted">{t.text}</p>
                       <p className="num mt-1.5 inline-flex flex-wrap gap-x-2 rounded-full bg-primary-soft px-2.5 py-0.5 text-small font-semibold">
                         <span>Saves about {peso(t.monthlySaving)}/month</span>
-                        {t.paybackMonths !== null && <span>· pays back in {t.paybackMonths} months</span>}
+                        {payback && <span>· pays back in {payback}</span>}
                       </p>
                     </div>
                   </Card>

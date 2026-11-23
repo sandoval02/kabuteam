@@ -11,15 +11,14 @@ export function AuthForms({ initialMode = "in" }: { initialMode?: "in" | "up" })
 
   return (
     <div className="mt-8 rounded-md bg-surface p-4 shadow-receipt">
-      <div role="tablist" aria-label="Account" className="mb-4 grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1">
+      <div role="group" aria-label="Account" className="mb-4 grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1">
         {(["in", "up"] as const).map((m) => (
           <button
             key={m}
             type="button"
-            role="tab"
-            aria-selected={mode === m}
+            aria-pressed={mode === m}
             onClick={() => setMode(m)}
-            className={`h-10 cursor-pointer rounded-full font-semibold transition-colors duration-100 ${
+            className={`h-11 cursor-pointer rounded-full font-semibold transition-colors duration-100 ${
               mode === m ? "bg-primary text-on-primary" : "text-muted hover:text-text"
             }`}
           >

@@ -15,7 +15,7 @@ export function DeleteAppliance({ id, label }: { id: string; label: string }) {
         data-confirm-body="It will no longer appear on your receipt. You can add it again any time."
         data-confirm-label="Remove"
         data-confirm-tone="destructive"
-        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-sm text-muted transition-colors duration-100 hover:bg-error-bg hover:text-error"
+        className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm text-muted transition-colors duration-100 hover:bg-error-bg hover:text-error"
       >
         <Trash2 size={20} strokeWidth={1.75} aria-hidden />
       </button>

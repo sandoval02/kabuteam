@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { saveTheme, type ThemeChoice } from "@/app/theme-actions";
+import { saveTheme } from "@/app/theme-actions";
+import type { ThemeChoice } from "@/lib/theme";
 
 const OPTIONS: { value: ThemeChoice; label: string; Icon: typeof Sun }[] = [
   { value: "light", label: "Light", Icon: Sun },
@@ -31,7 +32,7 @@ export function ThemeSwitcher({ initial }: { initial: ThemeChoice }) {
           role="radio"
           aria-checked={theme === value}
           onClick={() => choose(value)}
-          className={`flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-full text-small font-semibold transition-colors duration-100 ${
+          className={`flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-full text-small font-semibold transition-colors duration-100 ${
             theme === value ? "bg-surface text-text shadow-receipt" : "text-muted hover:text-text"
           }`}
         >

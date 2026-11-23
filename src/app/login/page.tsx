@@ -4,6 +4,8 @@ import { getViewer } from "@/lib/auth";
 import { AuthForms } from "./auth-forms";
 import { HouseIllustration } from "@/components/house-illustration";
 
+export const metadata = { title: "Sign in · TipidTayo" };
+
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
   if (await getViewer()) redirect("/");
   const { mode } = await searchParams;

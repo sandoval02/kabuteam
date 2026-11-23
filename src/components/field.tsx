@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, type ComponentProps, type ReactNode } from "react";
+import { useContext, type ComponentProps, type ReactNode, type Ref } from "react";
 import { TriangleAlert } from "lucide-react";
 import { FormContext } from "./form-context";
 
@@ -22,10 +22,21 @@ function Message({ id, error, hint }: { id: string; error?: string; hint?: strin
   );
 }
 
-type FieldProps = ComponentProps<"input"> & { label: string; hint?: string; error?: string; inputClassName?: string };
+type FieldProps = ComponentProps<"input"> & { label: string; hint?: string; error?: string; inputClassName?: string; inputRef?: Ref<HTMLInputElement> };
 
 /** Label + input + live error. Reads its error from the surrounding ValidatedForm by name. */
-export function Field({ label, hint, error: explicit, id, className = "", inputClassName = "h-10 text-[0.9375rem]", onBlur, onChange, ...props }: FieldProps) {
+export function Field({
+  label,
+  hint,
+  error: explicit,
+  id,
+  className = "",
+  inputClassName = "h-10 text-[0.9375rem]",
+  inputRef,
+  onBlur,
+  onChange,
+  ...props
+}: FieldProps) {
   const fieldId = id ?? props.name ?? label;
   const { error, ctx } = useFieldError(props.name, explicit);
   return (
@@ -35,6 +46,7 @@ export function Field({ label, hint, error: explicit, id, className = "", inputC
         {props.required && <span className="text-muted"> *</span>}
       </label>
       <input
+        ref={inputRef}
         id={fieldId}
         aria-invalid={error ? true : undefined}
         aria-describedby={hint || error ? `${fieldId}-hint` : undefined}

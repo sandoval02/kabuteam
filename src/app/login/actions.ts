@@ -10,21 +10,23 @@ export type AuthState = FormState;
 
 const GOOGLE_FAILED = "Google sign-in didn't go through. Try again, or use your email and password.";
 
-/** Checks the ID token Google's button returned: signed by Google, for this app, with a verified email. */
+/**
+ * Checks the access token Google's sign-in popup returned: issued to this app's client ID (so a token
+ * minted for some other app is refused), still valid, with a verified email. Then reads the name.
+ */
 async function verifyGoogle(token: string): Promise<{ email: string; name: string } | null> {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   if (!clientId) return null;
-  // ponytail: Google's tokeninfo endpoint checks the signature and expiry (one request per sign-in);
-  // verify locally against Google's JWKS if sign-in volume grows.
-  const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(10_000),
-  }).catch(() => null);
-  if (!res?.ok) return null;
-  const c = (await res.json()) as Record<string, string | undefined>;
-  const fromGoogle = c.iss === "accounts.google.com" || c.iss === "https://accounts.google.com";
-  if (!fromGoogle || c.aud !== clientId || c.email_verified !== "true" || !c.email) return null;
-  return { email: c.email.toLowerCase(), name: (c.name ?? "").trim().slice(0, 60) };
+  const call = (url: string, init?: RequestInit) =>
+    fetch(url, { ...init, cache: "no-store", signal: AbortSignal.timeout(10_000) })
+      .then((r) => (r.ok ? (r.json() as Promise<Record<string, string | undefined>>) : null))
+      .catch(() => null);
+  // ponytail: two calls to Google per sign-in (token check, then profile); fine at barangay scale.
+  const info = await call(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`);
+  if (!info || (info.aud !== clientId && info.azp !== clientId) || info.email_verified !== "true" || !info.email) return null;
+  const profile = await call("https://openidconnect.googleapis.com/v1/userinfo", { headers: { authorization: `Bearer ${token}` } });
+  if (profile?.email && profile.email.toLowerCase() !== info.email.toLowerCase()) return null;
+  return { email: info.email.toLowerCase(), name: (profile?.name ?? "").trim().slice(0, 60) };
 }
 
 /**

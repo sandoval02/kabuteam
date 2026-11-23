@@ -26,7 +26,7 @@ export function AuthForms({ mode, role }: { mode: "in" | "up"; role: SignUpRole 
               }
             />
           )}
-          <GoogleButton text={up ? "signup_with" : "continue_with"} />
+          <GoogleButton label={up ? "Sign up with Google" : "Continue with Google"} />
           {up && (
             <Field
               label="Name"

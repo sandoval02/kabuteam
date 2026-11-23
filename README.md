@@ -109,7 +109,7 @@ One barangay, its own partner sari-sari stores, its own budget. Vouchers keep th
 |---|---|---|
 | App framework | **Next.js 16.4** (App Router, Server Components, Server Actions), **React 19.3**, **TypeScript** (strict) | Screens and server code in one project and one deploy; secrets never leave the server |
 | Database | **Supabase Postgres** | Real SQL constraints (unique account number, single-use voucher via one atomic `UPDATE`), Row Level Security as defense in depth |
-| Auth | **Supabase Auth** (email + password, accounts created server-side as confirmed) + **Google Identity Services** (ID token verified on the server) | No email round-trip during a live demo; Google needs only a public client ID |
+| Auth | **Supabase Auth** (email + password, accounts created server-side as confirmed) + **Google sign-in** (Google Identity Services popup; the token is verified on the server) | No email round-trip during a live demo; Google needs only a public client ID |
 | File storage | **Supabase Storage** | Private bucket for bill photos (owner + barangay admin only); public bucket for avatars |
 | AI vision | **Google Gemini** (`@google/genai`, free tier) → optional **Claude** (`@anthropic-ai/sdk`) → providers the admin adds (OpenAI, Grok, Groq, OpenRouter or any OpenAI-compatible API) → manual entry | A quota or outage never blocks scanning |
 | Validation | **Zod 4** | One schema validates AI output, browser forms and server input |
@@ -132,7 +132,7 @@ flowchart LR
   N -->|"bill / sticker image"| AI["AI providers<br/>Gemini → Claude → admin-added"]
   AI -->|"JSON, validated with Zod"| N
   P -->|"Google button"| G["Google Identity Services"]
-  G -->|"signed ID token"| N
+  G -->|"access token, checked with Google"| N
 ```
 
 - **Browser:** takes photos, renders screens, validates forms instantly with the same Zod rules the server uses.
@@ -177,7 +177,7 @@ Each photo goes through a **fallback chain**; the first answer that passes Zod v
 - **Secrets stay on the server.** The browser only ever sees the Supabase URL, the publishable key and the Google client ID.
 - **Roles are checked on the server** in every page layout and action; RLS lets a signed-in user read only their own rows.
 - **No self-made admins or fake stores.** Admin sign-up needs `ADMIN_SIGNUP_CODE` (constant-time compare); a self-registered store can't receive vouchers until the admin approves it.
-- **Google sign-in** is verified server-side (issuer, audience = our client ID, verified email) before any session starts; a new Google account must go through sign-up to choose a role and give consent.
+- **Google sign-in** is verified server-side with Google (token issued to our client ID, verified email) before any session starts; a new Google account must go through sign-up to choose a role and give consent.
 - **AI provider keys** are encrypted with AES-256-GCM; error messages are scrubbed of the key.
 - **Bill photos** live in a private bucket, shown to the barangay admin through short-lived signed URLs.
 - **Vouchers** are redeemed by one atomic database update, so a code can't be used twice, even with double taps.

@@ -37,7 +37,7 @@ function StaticBars({ onShow3d }: { onShow3d?: () => void }) {
         <button
           type="button"
           onClick={onShow3d}
-          className="absolute bottom-2 right-2 inline-flex h-9 items-center rounded-full border border-border bg-surface px-3 text-small font-semibold shadow-receipt"
+          className="absolute bottom-2 right-2 inline-flex h-9 items-center rounded-full border border-border bg-surface px-3 text-small font-semibold shadow-receipt after:absolute after:-inset-1 after:content-['']"
         >
           View 3D
         </button>

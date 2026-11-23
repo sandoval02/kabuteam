@@ -28,4 +28,4 @@
 ## Automated tests
 
 - `npm test`: scoring rules (baseline, fair score, cap, low-usage floor, reconciliation including small gaps, badge eligibility, plausibility, swap tips).
-- `npm run e2e`: with `npm run dev` running, drives Microsoft Edge through the whole demo loop with throwaway accounts (landing, sign-up, bill entry, appliances, receipt, a real Gemini sticker scan, the hourly scan cap, flagging, ranking order, admin review, vouchers, single-use redeem, profile name and theme persistence, sign out, role checks) and fails on console errors. Deletes its accounts afterwards.
+- `npm run e2e`: with `npm run dev` running, drives Microsoft Edge through the whole demo loop with throwaway accounts (landing, sign-up, bill entry, appliances, receipt, real Gemini bill and sticker scans, the hourly scan cap, flagging, ranking order, admin review, vouchers, single-use redeem, profile name and theme persistence, sign out, role checks) and fails on console errors. Deletes its accounts afterwards.

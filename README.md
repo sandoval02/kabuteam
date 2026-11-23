@@ -132,6 +132,8 @@ No dependency gets added beyond this list without a written reason.
 
 ![Landing page](docs/screenshots/landing.png)
 
+Screens show a temporary "San Isidro" example barangay with representative demo data.
+
 ## 4. Getting started
 
 ```bash

@@ -108,7 +108,7 @@ export default async function AdminPage() {
                       <img
                         src={b.photoUrl}
                         alt={`Bill photo for ${b.label}`}
-                        className="max-h-44 w-full rounded-sm bg-surface-2 object-contain"
+                        className="mt-1 max-h-64 w-full object-contain"
                       />
                       <span className="mt-1 inline-flex items-center gap-1 text-small font-semibold text-primary underline">
                         Open full size

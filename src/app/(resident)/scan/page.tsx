@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plug, ReceiptText } from "lucide-react";
+import { Plug, ReceiptText, ScanEye } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getAppliances, getLatestBill, monthLabel } from "@/lib/data";
 import { CardSection, Notice, buttonStyles, kwh } from "@/components/ui";
@@ -7,6 +7,7 @@ import { Tabs } from "@/components/tabs";
 import { DeleteAppliance } from "./delete-appliance";
 import { BillScanner } from "./bill-scanner";
 import { ApplianceForm } from "./appliance-form";
+import { RoomCheck } from "./room-check";
 
 export const metadata = { title: "Scan · Kuryentipid" };
 
@@ -67,6 +68,15 @@ export default async function ScanPage() {
                     View receipt
                   </Link>
                 )}
+              </CardSection>
+            ),
+          },
+          {
+            id: "room",
+            label: "Room check",
+            content: (
+              <CardSection title="Room check" icon={ScanEye}>
+                <RoomCheck />
               </CardSection>
             ),
           },

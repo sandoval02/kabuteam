@@ -81,6 +81,8 @@ Navs float: rounded-lg, 45–70% background with `backdrop-blur`, a hairline rin
 | Voucher | `Ticket` |
 | Unaccounted / flagged | `TriangleAlert` |
 | Verified | `BadgeCheck` |
+| Room check | `ScanEye` |
+| Tip / fix | `Lightbulb` |
 
 ### Motion
 
@@ -102,7 +104,7 @@ Defined once in `src/components/ui/`. Every interactive component has: default, 
 | **Badge chip** | `--color-accent` background, `--color-text` label, `Award` icon, `--radius-sm`. Only for earned badges. |
 | **VoucherCard** | Big QR code, 6-character fallback code in mono, store name, amount, expiry. States: active, redeemed (greyed out with "Used on <date>"), expired. |
 | **Modal / bottom sheet** | Bottom sheet on mobile, centered modal ≥ md. Focus trapped, Esc and backdrop close, focus returns to trigger. |
-| **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
+| **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Home's quick actions (4 lime circles): Scan bill, Appliances, Receipt, Room check. Admin and store: simple top bar, single page each. |
 | **Login / register** | `/login` and `/login?mode=up` (`&role=store` / `&role=admin` preselects a role). Wordmark lockup in the header, then two columns at `lg` (one column below, form first): title + form card + privacy line; a lime panel listing the billing month (date, who, what) in ink. Sign-up form order: "I'm joining as" role dropdown (`Household`, `Sari-sari store`, `Barangay admin`): a 40px field shows the chosen role's icon and title with a chevron; opening it shows the three original role rows below (`House`/`Store`/`Landmark` icon, title, one-line description; selected row lime), then the role's extra field (store name or admin access code), the consent checkbox (`CheckField`), "Sign up with Google" (secondary button), "or with email", name/email/password, Create account. |
 | **Toast** | Bottom-center, 96px above the viewport edge so it clears the floating nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
 | **Skeleton** | Grey `--color-border` blocks matching the final layout, pulsing (still under reduced motion). Each nav page (Home, Scan, Ranking, Vouchers) has a `loading.tsx`, so a nav tap switches instantly to the skeleton; the tapped nav icon shows a spinner until the page arrives. |
@@ -132,8 +134,17 @@ Non-negotiable. Every visual element has a purpose; every interaction does somet
 - **Empty:** the bill form is always shown . Above it, one line on what to photograph and a lime "Take or upload bill photo" button (the appliance sticker button is lime too); a read fills the fields in, with the photo shown above them.
 - **Error:** unreadable photo → "Couldn't read this. Retake in better light, or type the numbers." with both actions. Failed rate check → "We'll ask the barangay to check this bill" (goes to review, not a dead end).
 - **Success:** extracted fields shown as an editable form; "Save bill" confirms. Below kWh and amount, a live "That's ₱X per kWh" line (amount ÷ kWh); outside ₱8–₱20 it becomes a warning Notice, since the bill will go to barangay review.
-- **Layout:** no hero. Bill and Appliances are a segmented pill switch (`Tabs variant="segmented"`, active pill lime) that sticks under the app header while the form scrolls; `/scan#appliances` opens the Appliances tab.
+- **Layout:** no hero. Bill, Appliances and Room check are a three-part segmented pill switch (`Tabs variant="segmented"`, active pill lime) that sticks under the app header while the form scrolls; `/scan#appliances` and `/scan#room` open those tabs.
 - **Mobile:** this *is* the mobile layout; on desktop, the same column centered.
+
+### Room check (resident, third Scan tab)
+- **Primary:** Start camera → Check now. **Secondary:** auto-check every N minutes (1 to 60, empty = off); check a photo instead; stop camera.
+- **Empty:** one muted line on what it does, an info Notice ("Photos are checked by the AI and never saved. Point the camera at the room, not at people."), a lime "Start camera" button and a secondary "Check a photo instead" (`PhotoCapture`). With no camera API, only the photo button, in lime.
+- **Camera on:** square video (`rounded-sm`, `surface-2` behind it), then lime "Check now", the latest result, the "Auto-check every (minutes)" number `Field` (placeholder "Off"; its hint carries the countdown, "Next check in 4:32. Keep this page open and the screen on.", plus a cap warning below 3 minutes; outside 1 to 60 the error "Use a whole number from 1 to 60." replaces the hint), and a secondary "Stop camera".
+- **Loading:** "Checking the room…" over the dimmed video (as the bill photo), buttons disabled.
+- **Error:** camera blocked, missing, busy or ended mid-use, AI failed, or hourly limit → warning Notice with the next step; a failure during auto-check also says "Auto-check is off."
+- **Success:** one Notice in an `aria-live` status: **left on, nobody there** (`warning`: "May naiwang bukas, walang tao: TV, Lights.", the AI's one-sentence observation, "₱1.39 kada oras habang bukas." with the amount in mono), **someone is there** (`info`), **all clear** (`success`), or **unclear** (`warning`, retake advice). Below it, one row per device: label left, "100 W · ₱1.26/h" right in mono. With no bill yet, "Save a bill to see what this costs in pesos." Earlier checks this visit: time (mono) + short verdict, up to 10.
+- **Motion:** none beyond the shared button press and the pulsing `ScanLine` while checking. No alarm sound, scan line or REC badge.
 
 ### Receipt (resident)
 - **Primary:** see what costs the most. **Secondary:** open a swap tip; add a missed appliance.

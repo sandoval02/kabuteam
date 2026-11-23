@@ -205,3 +205,8 @@ export function swapTip(line: ReceiptLine): SwapTip {
   const saving = round2(pesos * 0.25);
   return { lineId: line.id, text: "Use it a quarter less, and unplug it when not in use", monthlySaving: saving, paybackMonths: null };
 }
+
+/** Room check: what one device left on costs per hour at the bill's effective rate. */
+export function pesosPerHour(watts: number, rate: number): number {
+  return round2((watts / 1000) * rate);
+}

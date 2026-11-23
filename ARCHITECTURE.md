@@ -22,7 +22,7 @@ One Next.js app (App Router, TypeScript) deployed on Vercel. The browser takes p
 
 | Role | Can |
 |---|---|
-| `resident` | Scan own bills/appliances, see own receipt, see the barangay leaderboard (household labels only), see own vouchers |
+| `resident` | Scan own bills/appliances, run Room check, see own receipt, see the barangay leaderboard (household labels only), see own vouchers |
 | `store` | Redeem vouchers for their own store |
 | `admin` | Review flagged bills, set voucher pool, manage partner stores, for their barangay |
 
@@ -57,6 +57,16 @@ Limits are per Google Cloud **project**, not per API key: extra keys from the sa
 - **Logging:** record which step served each scan (`gemini:<model>` / `anthropic:<model>` / `manual`), plus the failure reason for skipped steps, server-side only. It shows when a quota is running out.
 - **Privacy:** Gemini's free tier may use submitted content to improve Google's products, and bills contain names and account numbers. For the hackathon, use only bills from people who agreed. Before real residents use it, enable billing on the Gemini project (paid-tier data isn't used for training) or rely on the Claude step.
 - Every extracted value is shown to the user as **editable** before saving. The AI suggests, the user confirms.
+
+### Room check
+
+The resident's Scan page has a third tab that turns the phone camera into a check for appliances left on in an empty room (energy only; ported from the TipidWatch prototype, [cathdevz/tipidwatch](https://github.com/cathdevz/tipidwatch)).
+
+- **Browser** (`src/app/(resident)/scan/room-check.tsx`): `getUserMedia` rear camera; **Check now** grabs the current frame with `createImageBitmap(video)` and posts it through the same `postPhoto` / `resizeImage` (≤ 1600px JPEG) as bill photos. Optional auto-check every 1 to 60 minutes (typed; anything else is refused with a message) with a visible countdown. Without a camera (or with permission denied) the same check runs on a taken or uploaded photo. A 1-second tick runs while the camera is on; it turns the camera off when the tab panel or the page is hidden. After `play()` the track must still be `live` (else it is a camera error), and its `ended` event turns the camera off with a message, so a camera that dies (another app, a phone call) never leaves a frozen frame that looks live. Results live in component state only (latest 10, this visit).
+- **Server** (`POST /api/extract/room`): `readImageRequest(request, "room")` (resident only, type and size checks, shared hourly cap), then `extract(image, RoomExtraction, ROOM_PROMPT)` through the whole fallback chain. The model returns `readable`, `people_present`, `devices_on: [{ type }]` (the appliance enum, so names match the receipt) and a one-sentence `observation`. **Waste is decided by our code**, not the model: readable, nobody present, and at least one device on.
+- **Cost:** for each device, watts come from the household's own appliance of that type, else the typical watts in `APPLIANCE_TYPES`; ₱/hour = `pesosPerHour(watts, effectiveRate(amount_due, kwh))` from the latest bill. With no bill yet, the response has watts only and the screen asks for a bill.
+- **Response:** `{ data: { check: { readable, peoplePresent, waste, observation, devices: [{ type, label, watts, pesosPerHour }] }, servedBy } }`. When every AI step fails it is `check: null` with `servedBy: "manual"` (a 200, like the bill and sticker routes); the screen says the room could not be checked and turns auto-check off.
+- **Privacy:** the photo is never uploaded to Storage or written to the database; only `servedBy` is logged. The prompt asks whether someone is present, never who, and tells the model not to describe people.
 
 ```ts
 // src/lib/extraction/extract.ts (shape, not final code)
@@ -116,8 +126,8 @@ All in `src/lib/scoring/`, with no I/O, so they're testable with plain asserts.
 
 ## API conventions
 
-- Mutations use **Server Actions**; the two extraction calls are **Route Handlers** (`POST /api/extract/bill`, `POST /api/extract/appliance`) because they take multipart image uploads.
-- JSON responses: success `{ data }`, error `{ error: { code, message } }`. Status codes: 200/201, 400 bad input, 401, 403, 404, 409 conflict (e.g. voucher already used), 413 image too large, 502 AI provider failed.
+- Mutations use **Server Actions**; the three extraction calls are **Route Handlers** (`POST /api/extract/bill`, `/appliance`, `/room`) because they take multipart image uploads.
+- JSON responses: success `{ data }`, error `{ error: { code, message } }`. Status codes: 200/201, 400 bad input, 401, 403, 404, 409 conflict (e.g. voucher already used), 413 image too large, 429 hourly scan cap reached, 502 AI provider failed.
 - Uploads: max 8 MB, image types only, checked server-side.
 
 ## Data model (Supabase Postgres)
@@ -133,7 +143,7 @@ All in `src/lib/scoring/`, with no I/O, so they're testable with plain asserts.
 | `badges` | `household_id`, `code`, `awarded_at` | UNIQUE(`household_id`, `code`) |
 | `stores` | `id`, `barangay_id`, `name`, `owner_profile_id`, `approved_at` | one store per owner; `approved_at` null = waiting for the admin |
 | `vouchers` | `id`, `code`, `household_id`, `store_id`, `amount`, `score_month`, `expires_at`, `redeemed_at` | `code` UNIQUE; one per household per month; redeem = `UPDATE … SET redeemed_at = now() WHERE code = $1 AND redeemed_at IS NULL AND expires_at > now()`, so it's single-use even with double-taps |
-| `extraction_attempts` | `profile_id`, `kind`, `created_at` | best-effort hourly scan cap (20/user/hour); server-only |
+| `extraction_attempts` | `profile_id`, `kind`, `created_at` | best-effort hourly scan cap (20/user/hour across all kinds); kind ∈ bill/appliance/room; server-only |
 | `ai_providers` | `preset`, `base_url`, `model`, `api_key_enc`, `key_hint`, `last_test` | admin-added fallback providers; key encrypted; server-only |
 | `payouts` | `store_id`, `amount`, `voucher_count`, `method`, `reference`, `recorded_by`, `paid_at`, `status`, `store_note`, `responded_at` | status ∈ pending/confirmed/disputed; written only by `record_payout` / `respond_payout`; never deleted. `vouchers.payout_id` links each redeemed voucher to at most one payout |
 | `barangays.voucher_budget` | | monthly voucher cap in pesos; null = no cap |
@@ -168,7 +178,7 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 ├── src/
 │   ├── app/
 │   │   ├── (resident)/home/        # default resident dashboard
-│   │   ├── (resident)/scan/        # bill + appliance capture
+│   │   ├── (resident)/scan/        # bill + appliance capture, room check
 │   │   ├── (resident)/receipt/
 │   │   ├── (resident)/ranking/
 │   │   ├── (resident)/vouchers/
@@ -176,7 +186,7 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 │   │   ├── store/                  # redeem page
 │   │   ├── admin/                  # review + voucher pool
 │   │   ├── login/
-│   │   └── api/extract/{bill,appliance}/route.ts
+│   │   └── api/extract/{bill,appliance,room}/route.ts
 │   ├── components/
 │   │   ├── ui.tsx, field.tsx, form.tsx  # Button, Field, Notice, Card, validated forms, toasts
 │   │   ├── landing/                # homepage: month strip, example data, fair-score demo
@@ -234,3 +244,10 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | 2026-11-23 | Payouts are never edited after the store answers and never deleted (`on delete restrict` from vouchers and stores) | They are the audit trail both sides rely on; a disputed payout stays visible and is settled in person |
 | 2026-11-23 | Monthly voucher budget is per `score_month` and counts issued vouchers, not redeemed ones; checked again on the server in `issueVouchers` | The barangay never owes more than it set aside, even if every voucher is later redeemed. Two admins issuing at the same instant could both pass the check (noted in code); a locking DB function is the fix if that ever matters |
 | 2026-11-23 | Google button drawn by the app (secondary style + official G) using the GIS token client, instead of Google's rendered button | Google's rendered button only offers Google's own color presets, so it never matched the app in either theme; the token client lets the app style it, needs no client secret, and the server still verifies the token was issued to our client ID |
+| 2026-11-23 | Room check (from the TipidWatch prototype) is a third tab on Scan, not a new nav item or a separate app | It is another way for a resident to find waste, so it belongs beside the bill and appliance scans; the bottom nav stays at 4. It reuses sign-in, the AI chain, the scan cap and the design system instead of TipidWatch's own API key, tables and dashboard |
+| 2026-11-23 | Room check is energy only; TipidWatch's water-leak detection was dropped | Kuryentipid is about electricity (SDG 7) and prices everything from the electric bill; there is no water bill to price a leak against |
+| 2026-11-23 | Room check photos are never stored, and its results never leave the resident's screen | Photos of the inside of a home are more sensitive than a bill; nothing about it is needed by the ranking or the admin |
+| 2026-11-23 | Room check shares the 20-per-hour AI cap; any failure turns auto-check off | TipidWatch checked every 5 seconds (about 720 calls an hour from one phone, more than the whole free Gemini quota). The server cap, not the interval, is what protects the quota |
+| 2026-11-23 | Auto-check interval is typed by the resident, 1 to 60 minutes (replaces fixed 5 / 10 / 15) | Requested by the project owner, also to test it quickly. Below 3 minutes the hint warns that the 20 checks an hour run out; the 429 then turns auto-check off, so a short interval costs at most one hour's cap |
+| 2026-11-23 | Home's fourth quick action is Room check instead of Ranking | Ranking is already in the bottom nav; a fifth action does not fit at 375px. Room check also appears in Home's Get started list and the receipt's Unaccounted warning |
+| 2026-11-23 | "Waste" is computed on the server (readable, nobody present, something on), and the ₱/hour comes from the household's own bill and appliances | The model only reports what it sees; the rule and the money stay in our code, like the fair score. Replaces TipidWatch's fixed "0.05 kWh saved" per alert |

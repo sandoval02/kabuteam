@@ -44,6 +44,24 @@ export const ApplianceExtraction = z.object({
 });
 export type ApplianceExtraction = z.infer<typeof ApplianceExtraction>;
 
+// Room check: what is switched on in a photo of a room. Waste (on + nobody there) is decided by our server, not the model.
+export const RoomExtraction = z.object({
+  readable: z.boolean().describe("false if the photo is too blurry or dark to tell what is switched on, or is not a room"),
+  people_present: z.boolean().describe("true if any person is visible"),
+  devices_on: z
+    .array(z.object({ type: z.enum(applianceTypeKeys).describe("Closest appliance category") }))
+    .describe("Appliances and lights clearly switched on; empty if none"),
+  observation: z.string().describe("One short sentence on what is switched on"),
+});
+export type RoomExtraction = z.infer<typeof RoomExtraction>;
+
+export const ROOM_PROMPT =
+  "This is one photo from a phone camera pointed at a room in a Philippine home. List each appliance or light that is clearly " +
+  "switched ON: a lit screen, a glowing bulb or lamp, a fan or aircon visibly running, or an indicator light or display that is on. " +
+  "Ignore daylight, reflections, and anything whose on/off state is not clear. Set people_present=true if any person is visible; " +
+  "never describe or identify people. Use the closest appliance category for each device. Never guess: leave a device out if unsure, " +
+  "and set readable=false if you cannot tell what is on.";
+
 export const BILL_PROMPT =
   "This is a photo of a Philippine electric bill (usually Meralco). Read it and fill the schema exactly. " +
   "Use digits only for the account number. Dates as YYYY-MM-DD. Read every bar of the monthly consumption chart into history " +

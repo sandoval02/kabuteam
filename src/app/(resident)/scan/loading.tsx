@@ -1,15 +1,17 @@
 import { Skeleton } from "@/components/ui";
 
-/** Mirrors the scan page: Bill/Appliances pill switch, then the bill card (photo button + form). */
+/** Mirrors the scan page: Bill/Appliances/Room check pill switch, then the bill card (photo button + form). */
 export default function Loading() {
   return (
     <div role="status">
       <span className="sr-only">Loading scan…</span>
-      <div className="grid grid-cols-2 gap-1 rounded-full bg-surface p-1 shadow-sheet">
+      <div className="grid grid-cols-3 gap-1 rounded-full bg-surface p-1 shadow-sheet">
         <Skeleton className="h-10 rounded-full" />
-        <span className="flex h-10 items-center justify-center">
-          <Skeleton className="h-3.5 w-24" />
-        </span>
+        {[0, 1].map((i) => (
+          <span key={i} className="flex h-10 items-center justify-center">
+            <Skeleton className="h-3.5 w-20" />
+          </span>
+        ))}
       </div>
       <div className="mt-3 rounded-md bg-surface p-3.5 shadow-receipt">
         <Skeleton className="mb-3 h-4 w-28" />

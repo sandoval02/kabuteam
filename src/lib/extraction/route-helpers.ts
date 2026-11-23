@@ -12,7 +12,9 @@ export const jsonError = (status: number, code: string, message: string) =>
   NextResponse.json({ error: { code, message } }, { status });
 
 /** Best-effort hourly cap. A limiter failure must not block a legitimate scan. */
-async function checkExtractionLimit(profileId: string, kind: "bill" | "appliance") {
+type Kind = "bill" | "appliance" | "room";
+
+async function checkExtractionLimit(profileId: string, kind: Kind) {
   const admin = createAdminClient();
   const since = new Date(Date.now() - WINDOW_MS).toISOString();
   const { count, error } = await admin
@@ -35,7 +37,7 @@ async function checkExtractionLimit(profileId: string, kind: "bill" | "appliance
 /** Auth + upload validation shared by the extraction routes. */
 export async function readImageRequest(
   request: Request,
-  kind: "bill" | "appliance",
+  kind: Kind,
 ): Promise<{ viewer: Viewer; bytes: Buffer; mimeType: string } | NextResponse> {
   let viewer: Viewer | null;
   try {

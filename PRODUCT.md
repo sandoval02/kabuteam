@@ -15,7 +15,7 @@ web
 
 ## Product Purpose
 
-Turns a household's Meralco bill into an itemized receipt (per-appliance pesos that add up to the real bill), ranks barangay neighbors by percent saved against their own same month last year, and rewards the top savers with vouchers at local sari-sari stores. SDG 7 (targets 7.1, 7.3). Success: households scan every month and the barangay's total kWh drops against last year.
+Turns a household's Meralco bill into an itemized receipt (per-appliance pesos that add up to the real bill), lets the phone camera catch appliances left on in an empty room (Room check, priced per hour from the same bill), ranks barangay neighbors by percent saved against their own same month last year, and rewards the top savers with vouchers at local sari-sari stores. SDG 7 (targets 7.1, 7.3). Success: households scan every month and the barangay's total kWh drops against last year.
 
 ## Positioning
 
@@ -23,6 +23,7 @@ Fair and verified, with no hardware. You compete against your own last year (cap
 
 ## Operating Context
 
+- Between bills: the resident can run Room check any day to catch what was left on.
 - Monthly loop: resident scans the new bill → suspicious bills go to the admin → admin issues vouchers to top savers at month end → resident shows QR at a partner store → store redeems once → barangay pays the store back (outside the app).
 - Sign-up picks a role: resident, store owner (admin approves the store before it can receive vouchers), or barangay admin (needs the barangay's admin access code, or an email in ADMIN_EMAILS).
 - Pilot: one barangay, about 50 households, 2 to 3 partner stores, 3 months. One Meralco billing cycle = one ranking round.
@@ -31,7 +32,8 @@ Fair and verified, with no hardware. You compete against your own last year (cap
 
 - Next.js web app in the phone browser; Supabase (auth, Postgres with RLS, private storage); Gemini vision with a fallback chain ending in manual entry. The admin can add more providers (OpenAI, Claude, Grok, Groq, ...) after a sample-bill test.
 - Email + password or Google sign-in. Privacy consent at sign-up (Data Privacy Act, RA 10173).
-- Out of scope: meter camera, payments, multiple barangays, non-Meralco bills, SMS/push, native app.
+- Room check: live camera or photo, energy only, photos never stored, shares the 20-per-hour AI cap (auto-check every 1 to 60 minutes, typed by the resident).
+- Out of scope: meter camera, water/leak detection, payments, multiple barangays, non-Meralco bills, SMS/push, native app.
 - Undecided: how and when the barangay pays stores back; voucher value and winner count (council decides; ₱100 × 10 winners is only an example).
 
 ## Brand Commitments

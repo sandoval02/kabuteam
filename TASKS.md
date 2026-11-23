@@ -50,22 +50,17 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 - [x] Extraction accuracy check on synthetic bill + sticker: every field read correctly, including the 13-bar usage chart (`gemini-3.5-flash-lite`). Repeat with real bills.
 - [x] Seed demo barangay with realistic households: `npm run seed:demo` (7 households, 1 flagged bill for the review demo)
 - [x] Fix blockers only (redeem function ambiguity, missing grants, form reset bug, stale-CSS issue)
+- [x] Room check: TipidWatch's live-camera energy check as a third Scan tab (shared AI chain and cap, ₱/hour from the bill, photos never stored), with e2e coverage through a fake camera
+- [ ] Room check on a real phone over HTTPS, per [TESTING.md](TESTING.md) **(you)**
 
 ## Phase 4: Polish and submit (final ~15%)
 
 - [x] Mobile pass at 375px; copy pass. Validation on every field, confirm dialogs, toasts, light/dark mode, profile page, 90% UI scale
 - [x] Demo script written: [DEMO.md](DEMO.md)
+- [ ] Rotate the API keys and database password that were shared during setup **(team)**
+- [ ] Set the real admin email in `ADMIN_EMAILS` before that person signs up; rename "Demo Barangay" on the admin page **(team)**
 - [ ] Rehearse the demo twice **(team)**
 - [ ] Backup screen recording of the full flow in case venue Wi-Fi fails **(team)**
 - [x] Roadmap slide content: meter camera, in [DEMO.md](DEMO.md#roadmap-slide-meter-camera)
 - [x] README accurate (setup, screenshots, demo accounts)
 - [ ] Submitted **(team)**
-
-## Demo script (draft)
-
-1. "This is Mang Jun's Meralco bill: ₱3,140. One number." Scan it live.
-2. Scan his ref and aircon stickers. The receipt appears: the aircon is 48%; 62 kWh are Unaccounted.
-3. Swap tip: inverter aircon saves ₱X a month and pays for itself in Y months.
-4. Ranking: his small house is #1 at 22% saved, above the mansion's 6%.
-5. Voucher: show the QR; switch to the store phone and redeem. Try it again: "Already used."
-6. Close: fair, verified, local. SDG 7 in one barangay.

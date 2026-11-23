@@ -63,7 +63,12 @@ const { data: barangayRow } = await admin.from("barangays").select("id, voucher_
 const barangayId = barangayRow.id;
 const budgetBefore = barangayRow.voucher_budget;
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+// Fake camera (a test pattern) with permission granted, so Room check runs end to end.
+const browser = await chromium.launch({
+  channel: "msedge",
+  headless: true,
+  args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+});
 try {
   step("Landing page");
   const visitor = await newPage(browser);
@@ -79,6 +84,9 @@ try {
   await visitor.locator("[data-id=bill] a").click();
   await visitor.waitForFunction(() => scrollY === 0 && document.querySelector("[aria-current=step]")?.closest("li")?.dataset.id === "bill");
   ok("Oct 1 in the month strip scrolls to the very top and is selected");
+  // Headless Edge ends the fake camera ~1.5 s after it starts while another browser context is open,
+  // so Room check (below) must run with Resident A's page as the only one, as on a real phone.
+  await visitor.context().close();
 
   step("Resident A signs up through the UI and enters a bill");
   const a = await newPage(browser);
@@ -164,19 +172,51 @@ try {
     console.log("  ! bill AI steps failed (quota?), manual form would be shown");
   }
 
+  step("Room check: live camera frame → AI verdict");
+  await a.goto(`${BASE}/scan#room`);
+  await a.getByRole("tab", { name: "Room check", selected: true }).waitFor();
+  await a.getByText("never saved").waitFor();
+  await a.getByRole("button", { name: "Start camera" }).click();
+  await a.getByRole("button", { name: "Check now" }).click();
+  // The fake camera shows a test pattern, so any verdict (or a clear AI error) proves the loop.
+  const verdict = a.getByText(/All clear|May naiwang bukas|Someone is in the room|Hindi malinaw|Could not check the room/).first();
+  await verdict.waitFor({ timeout: 90_000 });
+  ok(`room check answered: "${await verdict.textContent()}"`);
+  const minutes = a.getByLabel("Auto-check every (minutes)");
+  await minutes.fill("61");
+  await a.getByText("Use a whole number from 1 to 60.").waitFor();
+  await minutes.fill("7");
+  await a.getByText(/Next check in (7:00|6:5\d)\./).waitFor();
+  ok("custom auto-check minutes: 61 refused, 7 starts the countdown");
+  const track = () => a.evaluate(() => document.querySelector("video")?.srcObject?.getVideoTracks()[0]?.readyState);
+  assert.equal(await track(), "live");
+  await a.getByRole("tab", { name: /Appliances/ }).click();
+  await a.waitForFunction(() => document.querySelector("video")?.srcObject?.getVideoTracks()[0]?.readyState === "ended");
+  await a.getByRole("tab", { name: "Room check" }).click();
+  await a.getByRole("button", { name: "Start camera" }).waitFor();
+  ok("switching tabs turns the camera off");
+
   step("The hourly scan limit stops the 21st request");
   const { data: allUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
   const aId = allUsers.users.find((u) => u.email === email("a")).id;
-  // One sticker scan and one bill scan already used two of the twenty attempts.
+  // Bill, sticker and room checks share one cap: top up to the twenty attempts already used this hour.
+  const { count: used } = await admin
+    .from("extraction_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", aId);
   await admin.from("extraction_attempts").insert(
-    Array.from({ length: 18 }, () => ({ profile_id: aId, kind: "appliance" })),
+    Array.from({ length: Math.max(0, 20 - used) }, () => ({ profile_id: aId, kind: "appliance" })),
   );
   const limited = await a.request.post(`${BASE}/api/extract/appliance`, {
     multipart: { photo: { name: "sticker.jpg", mimeType: "image/jpeg", buffer: sticker } },
     timeout: 90_000, // the AI chain may try three slow models before falling back to manual entry
   });
   assert.equal(limited.status(), 429);
-  ok("21st scan in an hour is rejected");
+  const roomLimited = await a.request.post(`${BASE}/api/extract/room`, {
+    multipart: { photo: { name: "room.jpg", mimeType: "image/jpeg", buffer: sticker } },
+  });
+  assert.equal(roomLimited.status(), 429);
+  ok("21st scan in an hour is rejected, room checks included");
 
   step("Resident B (big house) and C (suspicious bill)");
   await makeUser("b");
@@ -224,6 +264,11 @@ try {
   const { data: sUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
   createdUsers.push(sUsers.users.find((u) => u.email === email("store")).id);
   ok("store account is pending, no redeem form yet");
+  const storeRoom = await s.request.post(`${BASE}/api/extract/room`, {
+    multipart: { photo: { name: "room.jpg", mimeType: "image/jpeg", buffer: sticker } },
+  });
+  assert.equal(storeRoom.status(), 403);
+  ok("a store account can't use Room check");
 
   step("Admin signs up with the access code");
   const ad = await newPage(browser);

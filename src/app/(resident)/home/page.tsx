@@ -8,8 +8,8 @@ import {
   ListChecks,
   Plug,
   ReceiptText,
+  ScanEye,
   TriangleAlert,
-  Trophy,
   type LucideIcon,
 } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
@@ -47,7 +47,7 @@ function Actions({ hasBill }: { hasBill: boolean }) {
       <Action href="/scan" icon={Camera} label={hasBill ? "Scan bill" : "Scan"} />
       <Action href="/scan#appliances" icon={Plug} label="Appliances" />
       <Action href={hasBill ? "/receipt" : "/scan"} icon={ReceiptText} label="Receipt" />
-      <Action href="/ranking" icon={Trophy} label="Ranking" />
+      <Action href="/scan#room" icon={ScanEye} label="Room check" />
     </nav>
   );
 }
@@ -130,12 +130,13 @@ export default async function HomePage() {
                 content: (
                   <ul className="divide-y divide-border">
                     {[
-                      { icon: Camera, title: "Photograph your bill", sub: "AI reads it; you check every number" },
-                      { icon: ListChecks, title: "Add your appliances", sub: "Scan the sticker or pick from a list" },
-                      { icon: ReceiptText, title: "Get your receipt", sub: "A peso amount for each appliance" },
-                    ].map(({ icon: Icon, title, sub }) => (
+                      { icon: Camera, title: "Photograph your bill", sub: "AI reads it; you check every number", href: "/scan" },
+                      { icon: ListChecks, title: "Add your appliances", sub: "Scan the sticker or pick from a list", href: "/scan#appliances" },
+                      { icon: ReceiptText, title: "Get your receipt", sub: "A peso amount for each appliance", href: "/scan" },
+                      { icon: ScanEye, title: "Check a room", sub: "Point the camera to catch what's left on", href: "/scan#room" },
+                    ].map(({ icon: Icon, title, sub, href }) => (
                       <li key={title}>
-                        <Link href="/scan" className="flex items-center gap-3 py-2.5">
+                        <Link href={href} className="flex items-center gap-3 py-2.5">
                           <span aria-hidden className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2">
                             <Icon size={15} strokeWidth={1.75} />
                           </span>

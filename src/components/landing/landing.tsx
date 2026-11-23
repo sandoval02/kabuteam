@@ -183,6 +183,10 @@ export async function Landing() {
             <p className="max-w-[52ch] text-lead text-muted">
               The rating sticker gives the watts. You set the hours you use it. Every line is scaled so the receipt matches the kWh on your bill,
               and the most expensive line gets one concrete fix.
+              <span className="mt-4 block">
+                Between bills, point the phone at a room. Room check says what was left on with nobody there, and what it costs per hour at your
+                bill&apos;s rate.
+              </span>
             </p>
             <figure className="flex flex-col gap-3">
               <div className="num rounded-md border-2 border-border-strong bg-surface-2 p-4 text-small uppercase leading-relaxed">

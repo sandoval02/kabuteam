@@ -16,11 +16,13 @@ import { requireViewer } from "@/lib/auth";
 import { APPLIANCE_TYPES, type ApplianceType } from "@/lib/extraction/schemas";
 import { getAppliances, getLatestBill, getLeaderboard, getScore, monthLabel } from "@/lib/data";
 import { UNACCOUNTED_THRESHOLD, daysInPeriod, reconcile, swapTip } from "@/lib/scoring";
-import { Notice, kwh, peso, pct } from "@/components/ui";
+import { Notice, kwh, paybackText, peso, pct } from "@/components/ui";
 import { UsageChart } from "@/components/usage-chart";
 import { Sparkline } from "@/components/sparkline";
 import { Tabs } from "@/components/tabs";
 import { ToastFromParam } from "@/components/form";
+
+export const metadata = { title: "Home · Kuryentipid" };
 
 const SAVED_TOASTS = {
   approved: { text: "Bill saved. You're on this month's barangay ranking." },
@@ -110,6 +112,7 @@ export default async function HomePage() {
     return (
       <>
         <ToastFromParam param="saved" messages={SAVED_TOASTS} />
+        <h1 className="sr-only">Home</h1>
         <section className="flex flex-col items-center pt-2 text-center">
           <p className="text-small text-muted">Your electric bill</p>
           <p className="num mt-0.5 text-[2.25rem] font-semibold leading-tight">₱—</p>
@@ -165,10 +168,12 @@ export default async function HomePage() {
   const baseline = score?.baseline ?? null;
   const trend = [...bill.history.map((h) => h.kwh), bill.kwh].slice(-13);
   const typeLabel = (t: string) => APPLIANCE_TYPES[t as ApplianceType]?.label ?? t;
+  const reasons = bill.flag_reasons.length ? ` ${bill.flag_reasons.join("; ")}.` : "";
 
   return (
     <>
       <ToastFromParam param="saved" messages={SAVED_TOASTS} />
+      <h1 className="sr-only">Home</h1>
       {bill.status !== "approved" && (
         <div className="mb-2">
           <Notice tone={bill.status === "flagged" ? "warning" : "error"}>
@@ -188,7 +193,7 @@ export default async function HomePage() {
                 </ul>
               </details>
             ) : (
-              "The barangay could not verify this bill, so it is not on the ranking."
+              `The barangay could not verify this bill, so it is not on the ranking.${reasons} You can scan a corrected bill for the same month.`
             )}
           </Notice>
         </div>
@@ -284,6 +289,7 @@ export default async function HomePage() {
                 <ul className="divide-y divide-border">
                   {tips.map((t) => {
                     const line = receipt.lines.find((l) => l.id === t.lineId)!;
+                    const payback = paybackText(t.paybackMonths);
                     return (
                       <Row
                         key={t.lineId}
@@ -291,7 +297,7 @@ export default async function HomePage() {
                         title={line.label}
                         detail={t.text}
                         value={`${peso(t.monthlySaving)}/mo`}
-                        sub={t.paybackMonths !== null ? `${t.paybackMonths} mo payback` : undefined}
+                        sub={payback ? `${payback} payback` : undefined}
                       />
                     );
                   })}

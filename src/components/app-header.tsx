@@ -18,7 +18,7 @@ export async function AppHeader({ title, sub }: { title?: string; sub?: string }
   const name = viewer?.displayName;
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-2.5 bg-bg/85 px-4 backdrop-blur-xl">
-      <Link href="/" aria-label="Kuryentipid home" className="shrink-0">
+      <Link href="/" aria-label="Kuryentipid home" className="-m-1 shrink-0 p-1">
         <Image src="/logo.png" alt="" width={36} height={36} priority />
       </Link>
       <div className="min-w-0 flex-1 leading-tight">

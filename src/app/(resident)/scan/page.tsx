@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plug, ReceiptText } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getAppliances, getLatestBill, monthLabel } from "@/lib/data";
-import { CardSection, Notice, kwh } from "@/components/ui";
+import { CardSection, Notice, buttonStyles, kwh } from "@/components/ui";
 import { Tabs } from "@/components/tabs";
 import { DeleteAppliance } from "./delete-appliance";
 import { BillScanner } from "./bill-scanner";
@@ -62,6 +62,11 @@ export default async function ScanPage() {
                   </ul>
                 )}
                 <ApplianceForm />
+                {bill && appliances.length > 0 && (
+                  <Link href="/receipt" className={`${buttonStyles.secondary} mt-3 w-full`}>
+                    View receipt
+                  </Link>
+                )}
               </CardSection>
             ),
           },

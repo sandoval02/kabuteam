@@ -31,10 +31,10 @@ Answer with the number or the rule first.
 
 | Question | Answer |
 |---|---|
-| Isn't this a CCTV inside people's homes? | No recording. Each check sends one frame to the AI and it is discarded; no photo is saved. An alert saves its start time and device names/watts, and on resolution its end time, estimated kWh and ₱ for that household's own list and monthly total; no people data, and nothing reaches the ranking or the admin. The AI is asked whether someone is there, never who. |
+| Isn't this a CCTV inside people's homes? | No recording. Each check sends one frame to the AI and it is discarded; no photo is saved. An alert saves its start time, device names/watts and plug state, and on resolution its end time, estimated kWh and ₱ for that household's own list and monthly total; no people data, and nothing reaches the ranking or the admin. The AI is asked whether someone is there, never who. |
 | What does it cost to run? | The same free AI chain as the bill. Every check counts toward the 20 AI reads per account per hour, so auto-check can never run past that; any failure turns it off. |
 | How do you avoid false alarms? | The AI lists only what is clearly on and says "unclear" instead of guessing. Whether it is waste is decided by our code, not the AI: something on **and** nobody in view. |
-| Where do the pesos per hour come from? | The household's own bill rate (amount ÷ kWh) times the appliance's watts: from their own scanned sticker if they have one, else a typical value. A 100 W TV at ₱12.56/kWh is ₱1.26 an hour. It assumes the device is plugged in; a laptop on battery is not drawing from Meralco. |
+| Where do the pesos per hour come from? | The household's own bill rate (amount ÷ kWh) times the appliance's watts: from their own scanned sticker if they have one, else a typical value. A 100 W TV at ₱12.56/kWh is ₱1.26 an hour. The AI marks a clearly unplugged device **Not plugged in** (0 kWh), assumes plugged when it cannot see the plug, and the **Plugged in** toggle fixes a wrong guess. |
 | Why not smart plugs or sensors? | No hardware to buy: a phone the household already has. |
 | Why only electricity, not water leaks? | SDG 7, and every peso is priced from the electric bill. The prototype's water check was left out on purpose. |
 | Does it change the ranking? | No. The ranking still comes only from verified bills. Room check is the resident's own tool for cutting waste before the next bill. |

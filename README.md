@@ -96,7 +96,7 @@ One barangay, its own partner sari-sari stores, its own budget. Vouchers keep th
 | **Sign-up by role** | Household, Sari-sari store (waits for the admin's approval before it can receive vouchers) or Barangay admin (needs the admin access code). Email + password or Google. Privacy consent (Data Privacy Act, RA 10173) is required. A failed sign-in says whether the email isn't registered, uses Google, or has the wrong password. |
 | **Scan the bill** | AI extraction of every bill field and the usage chart; manual entry always available; live "₱ per kWh" check. |
 | **Scan appliances** | Rating-sticker photo → type and watts; inverter detection; hours per day. |
-| **Room check** | Third tab on Scan (`/scan#room`): live rear camera with **Check now** and an optional auto-check every 1 to 60 minutes (off by default; the resident types the number), or a single photo. Says what is left on with nobody in the room, each device's watts and ₱ per hour (from the latest bill's rate; watts from the household's own appliance of that type, else a typical value), and keeps an **Alerts this month** list of left-on alerts, each **Still on** or **Resolved**, loaded from the saved alerts so it survives a refresh. A repeated detection stays one alert, whose monitored time, estimated kWh and ₱ climb until **Mark resolved** (or the next readable check that no longer sees the device) freezes the total. Alerts are saved (device names/watts, times, kWh and ₱) so an open alert restores with its timer, and **Wasted this month** at the top adds up the resolved ones. The alert timer is an estimate from first detection, not a meter reading, and assumes the device is plugged in. A voice says "Checking the room" and then reads the result aloud in Taglish (the browser's own speech, Filipino voice where the phone has one; "Speak the result" turns it off). Energy only. Photos are never stored; the camera turns off when the tab or page is left. Shares the 20-per-hour AI cap. Reachable from Home (quick action and Get started), from the receipt's Unaccounted warning, and described on the homepage. |
+| **Room check** | Third tab on Scan (`/scan#room`): live rear camera with **Check now** and an optional auto-check every 1 to 60 minutes (off by default; the resident types the number), or a single photo. Room check tries the stronger Gemini model first and the prompt lists every clearly-on device, not just the most obvious one. Says what is left on with nobody in the room, each device's watts and ₱ per hour (from the latest bill's rate; watts from the household's own appliance of that type, else a typical value), and keeps an **Alerts this month** list of left-on alerts, each **Still on** or **Resolved**, loaded from the saved alerts so it survives a refresh. A repeated detection stays one alert, whose monitored time, estimated kWh and ₱ climb until **Mark resolved** (or a later readable check that sees someone in the room, or no longer sees the device) freezes the total. Alerts are saved (device names/watts, plug state, times, kWh and ₱) so an open alert restores with its timer, and **Wasted this month** at the top adds up the resolved ones. The AI marks each device **Plugged in**, **Not plugged in** or unknown (unknown assumes plugged; a per-device **Plugged in** toggle corrects the AI), and unplugged devices add no kWh/₱. The alert timer is an estimate from first detection, not a meter reading. A voice says "Checking the room" and then reads the result aloud in Taglish (the browser's own speech, Filipino voice where the phone has one; "Speak the result" turns it off). Energy only. Photos are never stored; the camera turns off when the tab or page is left. Shares the 20-per-hour AI cap. Reachable from Home (quick action and Get started), from the receipt's Unaccounted warning, and described on the homepage. |
 | **Itemized receipt** | Per-appliance kWh and ₱, reconciled to the bill, sorted by cost, Unaccounted line, top-3 swap tips with monthly saving and payback months. |
 | **Ranking** | Monthly barangay ranking by fair score, showing both score and actual % saved; your row stays pinned while you scroll. |
 | **Badges** | First Scan, 10% Club, Efficient Already, Top 3. |
@@ -171,7 +171,7 @@ Full details: schema, API conventions and every decision with its reason in [ARC
 
 Each photo (bill, appliance sticker or room check) goes through a **fallback chain**; the first answer that passes Zod validation wins. If every step fails, the resident types the numbers in, so scanning never dead-ends; a failed room check says so and stops auto-check.
 
-1. Gemini models from `GEMINI_MODELS` (free tier, e.g. Flash-Lite first, Flash as the accuracy backstop)
+1. Gemini models from `GEMINI_MODELS` (free tier). Bills and stickers try them in order; Room check tries the first non-lite model first, then the rest
 2. Claude, if `ANTHROPIC_API_KEY` is set
 3. **Providers the barangay admin added** on the admin page: OpenAI (ChatGPT / Codex accounts), Anthropic, Google Gemini, xAI Grok, Groq, OpenRouter, or any OpenAI-compatible `https://` API
 4. Manual entry (always)
@@ -186,7 +186,7 @@ Each photo (bill, appliance sticker or room check) goes through a **fallback cha
 - **Google sign-in** is verified server-side with Google (token issued to our client ID, verified email) before any session starts; a new Google account must go through sign-up to choose a role and give consent.
 - **AI provider keys** are encrypted with AES-256-GCM; error messages are scrubbed of the key.
 - **Bill photos** live in a private bucket, shown to the barangay admin through short-lived signed URLs.
-- **Room check photos are never stored.** The frame goes to the AI and is discarded; the observation and result are shown only to that resident. An alert saves its start time and device names/watts, and when resolved its end time, estimated kWh and ₱ (no photo, no people, no observation) so the month's list and total survive a refresh; it is service-role only and nothing reaches the ranking or the admin. The prompt asks only whether someone is in the room, never who.
+- **Room check photos are never stored.** The frame goes to the AI and is discarded; the observation and result are shown only to that resident. An alert saves its start time, device names/watts and plug state, and when resolved its end time, estimated kWh and ₱ (no photo, no people, no observation) so the month's list and total survive a refresh; it is service-role only and nothing reaches the ranking or the admin. The prompt asks only whether someone is in the room, never who.
 - **Vouchers** are redeemed by one atomic database update, so a code can't be used twice, even with double taps.
 - **Payouts** are written only by two database functions that check the caller (admin of that barangay; owner of that store), lock the vouchers being paid, and compute the amount themselves; RLS lets only that store's owner and that barangay's admins read them.
 - **Privacy (RA 10173):** consent is required and timestamped at sign-up; neighbors see only a household number, % saved and badges, never a name, address or bill.
@@ -221,7 +221,7 @@ If `npm run db:migrate` fails with `ECONNRESET`, your network blocks Postgres po
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → Connect → Next.js | Yes (public by design) |
 | `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API Keys (`sb_secret_…`) | **No** |
 | `SUPABASE_DB_URL` | Supabase → Connect → Session pooler URI (migrations only) | **No** |
-| `GEMINI_API_KEY`, `GEMINI_MODELS` | aistudio.google.com/apikey; comma-separated model IDs tried in order | **No** |
+| `GEMINI_API_KEY`, `GEMINI_MODELS` | aistudio.google.com/apikey; comma-separated model IDs (bills/stickers try them in order; Room check prefers the first non-lite one) | **No** |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | Optional Claude step | **No** |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google Cloud → Credentials → OAuth client ID (the client secret is **not** used) | Yes (public by design) |
 | `ADMIN_SIGNUP_CODE` | Any random string of 12+ characters; share only with barangay officials | **No** |
@@ -246,7 +246,7 @@ Add the same variables in **Vercel → Project → Settings → Environment Vari
 ## 10. Testing
 
 ```bash
-npm test        # scoring rules: baseline, fair score, cap, low-usage floor, reconciliation, badges, plausibility, swap tips; Room check alert resolution, monitored consumption and monthly waste totals
+npm test        # scoring rules: baseline, fair score, cap, low-usage floor, reconciliation, badges, plausibility, swap tips; Room check alert resolution, monitored consumption, plugged-in filtering and monthly waste totals
 npm run e2e     # with `npm run dev` running: the whole loop in Microsoft Edge with throwaway accounts
 npm run lint
 npm run build

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   try {
     const [result, bill, appliances] = await Promise.all([
-      extract({ base64: bytes.toString("base64"), mimeType }, RoomExtraction, ROOM_PROMPT),
+      extract({ base64: bytes.toString("base64"), mimeType }, RoomExtraction, ROOM_PROMPT, { preferQuality: true }),
       getLatestBill(viewer.householdId),
       getAppliances(viewer.householdId),
     ]);
@@ -26,9 +26,15 @@ export async function POST(request: Request) {
     const rate = bill ? effectiveRate(bill.amount_due, bill.kwh) : null;
     // Watts from the household's own appliance of that type when it has one, else the typical value.
     const devices = room.readable
-      ? room.devices_on.map(({ type }) => {
+      ? room.devices_on.map(({ type, plugged_in }) => {
           const watts = appliances.find((a) => a.type === type)?.watts ?? APPLIANCE_TYPES[type].watts;
-          return { type, label: APPLIANCE_TYPES[type].label, watts, pesosPerHour: rate === null ? null : pesosPerHour(watts, rate) };
+          return {
+            type,
+            label: APPLIANCE_TYPES[type].label,
+            watts,
+            pluggedIn: plugged_in,
+            pesosPerHour: rate === null ? null : pesosPerHour(watts, rate),
+          };
         })
       : [];
 

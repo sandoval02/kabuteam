@@ -18,7 +18,7 @@ import {
   type RoomCheck,
   type RoomEntry,
 } from "@/lib/room-check";
-import { saveRoomAlert } from "./room-actions";
+import { saveRoomAlert, updateRoomAlertDevices } from "./room-actions";
 
 const MINUTE = 60_000;
 // The server's 20-per-hour AI cap is the real limit; below 3 minutes it runs out before the hour does.
@@ -52,7 +52,8 @@ function spokenPeso(n: number) {
 /** What the voice says: the on-screen verdict, with the cost in words. */
 function spoken(c: RoomCheck) {
   const cost = costPerHour(c);
-  return `${verdict(c).title}${c.waste && cost !== null ? ` ${spokenPeso(cost)} kada oras.` : ""}`;
+  const active = c.devices.some((d) => d.pluggedIn !== false);
+  return `${verdict(c).title}${!active ? " Hindi naka-plug in." : c.waste && cost !== null ? ` ${spokenPeso(cost)} kada oras.` : ""}`;
 }
 
 /** Reads text aloud with the browser's own voice (Filipino where the phone has one); a new line cuts off the last. */
@@ -165,6 +166,16 @@ export function RoomCheck({
     if (voice) say("Naayos na.");
   }
 
+  function setPlugged(index: number, plugged: boolean) {
+    const entry = checks[0];
+    if (!entry || !entry.waste || entry.resolvedAt) return;
+    const devices = entry.devices.map((device, i) => (i === index ? { ...device, pluggedIn: plugged } : device));
+    setChecks((prev) => prev.map((current, i) => (i === 0 ? { ...current, devices } : current)));
+    void updateRoomAlertDevices({ startedAt: new Date(entry.at).toISOString(), devices }).then((saved) => {
+      if (!saved.ok) toast.error(saved.error);
+    });
+  }
+
   // Every second while the camera is on: countdown and due auto-checks. Leaving the tab or the page turns the camera off.
   const onTick = useEffectEvent(() => {
     if (document.hidden || !root.current?.offsetParent) return stopCamera();
@@ -234,7 +245,12 @@ export function RoomCheck({
   }, [checks]);
 
   const live = stream !== null;
-  const result = checks[0] && <Result entry={checks[0]} />;
+  const result = checks[0] && (
+    <Result
+      entry={checks[0]}
+      onTogglePlugged={checks[0].waste && !checks[0].resolvedAt ? setPlugged : undefined}
+    />
+  );
   const alerts = checks.filter((c) => c.waste);
   const alertList = alerts.length > 0 && (
     <div>
@@ -304,7 +320,7 @@ export function RoomCheck({
             {monthWaste.pesos !== null && ` · ${peso(monthWaste.pesos)}`}
           </span>
         </div>
-        <p className="text-muted">Estimates assume the device is plugged in.</p>
+        <p className="text-muted">If the plug is not visible, we assume it is plugged in.</p>
       </div>
 
       {!live && (
@@ -396,10 +412,17 @@ export function RoomCheck({
   );
 }
 
-function Result({ entry }: { entry: RoomEntry }) {
+function Result({
+  entry,
+  onTogglePlugged,
+}: {
+  entry: RoomEntry;
+  onTogglePlugged?: (index: number, plugged: boolean) => void;
+}) {
   const v = verdict(entry);
   const cost = costPerHour(entry);
   const open = entry.waste && !entry.resolvedAt;
+  const active = entry.devices.some((d) => d.pluggedIn !== false);
   return (
     <div className="flex flex-col gap-2">
       <Notice tone={v.tone}>
@@ -407,7 +430,9 @@ function Result({ entry }: { entry: RoomEntry }) {
         {entry.readable && !entry.resolvedAt && entry.observation && <span className="block">{entry.observation}</span>}
         {open && (
           <span className="block">
-            {cost === null ? (
+            {!active ? (
+              "Not plugged in, so no grid energy is used."
+            ) : cost === null ? (
               "Save a bill to see what this costs in pesos."
             ) : (
               <>
@@ -420,11 +445,24 @@ function Result({ entry }: { entry: RoomEntry }) {
       {!entry.resolvedAt && entry.devices.length > 0 && (
         <ul className="divide-y divide-border">
           {entry.devices.map((d, i) => (
-            <li key={i} className="flex items-center justify-between gap-3 py-2">
-              <span className="font-semibold">{d.label}</span>
-              <span className="num text-small text-muted">
-                {d.watts} W{d.pesosPerHour !== null && ` · ${peso(d.pesosPerHour)}/h`}
-              </span>
+            <li key={i} className="py-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold">{d.label}</span>
+                <span className="num text-small text-muted">
+                  {d.pluggedIn === false
+                    ? "Not plugged in"
+                    : `${d.watts} W${d.pesosPerHour !== null ? ` · ${peso(d.pesosPerHour)}/h` : ""}`}
+                </span>
+              </div>
+              {onTogglePlugged && (
+                <CheckField
+                  label="Plugged in"
+                  name={`plugged-${i}`}
+                  aria-label={`${d.label} plugged in`}
+                  checked={d.pluggedIn !== false}
+                  onChange={(e) => onTogglePlugged(i, e.target.checked)}
+                />
+              )}
             </li>
           ))}
         </ul>

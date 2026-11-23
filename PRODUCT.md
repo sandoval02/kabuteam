@@ -32,7 +32,7 @@ Fair and verified, with no hardware. You compete against your own last year (cap
 
 - Next.js web app in the phone browser; Supabase (auth, Postgres with RLS, private storage); Gemini vision with a fallback chain ending in manual entry. The admin can add more providers (OpenAI, Claude, Grok, Groq, ...) after a sample-bill test.
 - Email + password or Google sign-in. Privacy consent at sign-up (Data Privacy Act, RA 10173).
-- Room check: live camera or photo, energy only, photos never stored; an alert saves its device names/watts and, on resolution, its estimated kWh/₱ for the household's own list and monthly total; shares the 20-per-hour AI cap (auto-check every 1 to 60 minutes, typed by the resident).
+- Room check: live camera or photo, energy only, photos never stored; the AI marks each device plugged/unplugged/unknown with a manual **Plugged in** override, unplugged devices add no kWh/₱; an alert saves its device names/watts, plug state and, on resolution, its estimated kWh/₱ for the household's own list and monthly total; shares the 20-per-hour AI cap (auto-check every 1 to 60 minutes, typed by the resident).
 - Out of scope: meter camera, water/leak detection, payments, multiple barangays, non-Meralco bills, SMS/push, native app.
 - Undecided: how and when the barangay pays stores back; voucher value and winner count (council decides; ₱100 × 10 winners is only an example).
 

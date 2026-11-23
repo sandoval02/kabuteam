@@ -259,7 +259,7 @@ const alerts = HOUSEHOLDS.flatMap((h) => {
     const started = manila(plusDays(`${today}T00:00:00Z`, -daysAgo).slice(0, 10), time);
     const devices = types.map((type) => {
       const watts = h.appliances.find((a) => a.type === type)?.watts ?? APPLIANCE_TYPES[type].watts;
-      return { type, label: APPLIANCE_TYPES[type].label, watts, pesosPerHour: pesosPerHour(watts, rate) };
+      return { type, label: APPLIANCE_TYPES[type].label, watts, pluggedIn: null, pesosPerHour: pesosPerHour(watts, rate) }; // null: AI unsure, counted as plugged in
     });
     const energy = monitoredConsumption({ devices }, minutes * 60_000);
     return {

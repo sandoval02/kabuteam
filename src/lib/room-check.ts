@@ -1,4 +1,10 @@
-export type RoomDevice = { type: string; label: string; watts: number; pesosPerHour: number | null };
+export type RoomDevice = {
+  type: string;
+  label: string;
+  watts: number;
+  pluggedIn: boolean | null;
+  pesosPerHour: number | null;
+};
 
 export type RoomCheck = {
   readable: boolean;
@@ -15,13 +21,18 @@ export type RoomVerdict = { tone: "success" | "warning" | "info"; title: string 
 export type MonthWaste = { kwh: number; pesos: number | null };
 
 export function deviceLabels(c: RoomCheck) {
-  return [...new Set(c.devices.map((d) => d.label))].join(", ");
+  return [...new Set(c.devices.map((d) => (d.pluggedIn === false ? `${d.label} (not plugged in)` : d.label)))].join(", ");
+}
+
+export function energyDevices(c: RoomCheck) {
+  return c.devices.filter((d) => d.pluggedIn !== false);
 }
 
 export function costPerHour(c: RoomCheck): number | null {
-  return c.devices.length > 0 && c.devices[0].pesosPerHour !== null
-    ? c.devices.reduce((sum, d) => sum + (d.pesosPerHour ?? 0), 0)
-    : null;
+  const active = energyDevices(c);
+  if (c.devices.length === 0) return null;
+  if (active.length === 0) return 0;
+  return active[0].pesosPerHour !== null ? active.reduce((sum, d) => sum + (d.pesosPerHour ?? 0), 0) : null;
 }
 
 export function verdict(c: RoomCheck & { resolvedAt?: number | null }): RoomVerdict {
@@ -36,6 +47,9 @@ export function verdict(c: RoomCheck & { resolvedAt?: number | null }): RoomVerd
 
 export function resolveAlerts(entries: RoomEntry[], check: RoomCheck, at: number): RoomEntry[] {
   if (!check.readable) return entries;
+  if (check.peoplePresent) {
+    return entries.map((entry) => (entry.waste && !entry.resolvedAt ? { ...entry, resolvedAt: at } : entry));
+  }
   const stillOn = new Set(check.devices.map((d) => d.type));
   return entries.map((entry) =>
     entry.waste && !entry.resolvedAt && !entry.devices.some((d) => stillOn.has(d.type))
@@ -49,7 +63,12 @@ export function nextChecks(entries: RoomEntry[], check: RoomCheck, at: number): 
   if (check.waste) {
     const open = resolved.findIndex((entry) => entry.waste && !entry.resolvedAt);
     if (open >= 0) {
-      const merged = { ...resolved[open], ...check, at: resolved[open].at, resolvedAt: null };
+      const previous = new Map(resolved[open].devices.map((d) => [d.type, d.pluggedIn]));
+      const devices = check.devices.map((d) => ({
+        ...d,
+        pluggedIn: previous.has(d.type) ? previous.get(d.type)! : d.pluggedIn,
+      }));
+      const merged = { ...resolved[open], ...check, devices, at: resolved[open].at, resolvedAt: null };
       return [merged, ...resolved.filter((_, i) => i !== open)].slice(0, 10);
     }
   }
@@ -62,7 +81,7 @@ export function monitoredMs(entry: RoomEntry, now: number): number {
 
 export function monitoredConsumption(entry: RoomCheck, ms: number): { kwh: number; pesos: number | null } {
   const hours = ms / 3_600_000;
-  const kwh = (entry.devices.reduce((sum, d) => sum + d.watts, 0) / 1000) * hours;
+  const kwh = (energyDevices(entry).reduce((sum, d) => sum + d.watts, 0) / 1000) * hours;
   const perHour = costPerHour(entry);
   return { kwh, pesos: perHour === null ? null : perHour * hours };
 }

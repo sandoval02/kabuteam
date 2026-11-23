@@ -16,11 +16,13 @@ import { requireViewer } from "@/lib/auth";
 import { APPLIANCE_TYPES, type ApplianceType } from "@/lib/extraction/schemas";
 import { getAppliances, getLatestBill, getLeaderboard, getScore, monthLabel } from "@/lib/data";
 import { UNACCOUNTED_THRESHOLD, daysInPeriod, reconcile, swapTip } from "@/lib/scoring";
-import { Notice, kwh, peso, pct } from "@/components/ui";
+import { Notice, kwh, paybackText, peso, pct } from "@/components/ui";
 import { UsageChart } from "@/components/usage-chart";
 import { Sparkline } from "@/components/sparkline";
 import { Tabs } from "@/components/tabs";
 import { ToastFromParam } from "@/components/form";
+
+export const metadata = { title: "Home · Kuryentipid" };
 
 const SAVED_TOASTS = {
   approved: { text: "Bill saved. You're on this month's barangay ranking." },
@@ -74,12 +76,17 @@ function Row({ icon: Icon, tone = "plain", title, detail, value, sub }: { icon: 
 
 export default async function HomePage() {
   const viewer = await requireViewer("resident");
-  const [bill, board] = await Promise.all([getLatestBill(viewer.householdId), getLeaderboard(viewer.barangayId)]);
+  const [bill, board, appliances] = await Promise.all([
+    getLatestBill(viewer.householdId),
+    getLeaderboard(viewer.barangayId),
+    getAppliances(viewer.householdId),
+  ]);
 
   if (!bill) {
     return (
       <>
         <ToastFromParam param="saved" messages={SAVED_TOASTS} />
+        <h1 className="sr-only">Home</h1>
         <section className="flex flex-col items-center pt-2 text-center">
           <p className="text-small text-muted">Your electric bill</p>
           <p className="num mt-0.5 text-[2.25rem] font-semibold leading-tight">₱—</p>
@@ -124,7 +131,7 @@ export default async function HomePage() {
     );
   }
 
-  const [appliances, score] = await Promise.all([getAppliances(viewer.householdId), getScore(bill.id)]);
+  const score = await getScore(bill.id);
   const rankIndex = board.month === bill.score_month ? board.rows.findIndex((r) => r.householdId === viewer.householdId) : -1;
   const receipt = reconcile(
     appliances.map((a) => ({ id: a.id, label: a.label, type: a.type, watts: a.watts, hoursPerDay: a.hours_per_day, isInverter: a.is_inverter })),
@@ -136,15 +143,18 @@ export default async function HomePage() {
   const trend = [...bill.history.map((h) => h.kwh), bill.kwh].slice(-13);
   const typeLabel = (t: string) => APPLIANCE_TYPES[t as ApplianceType]?.label ?? t;
 
+  const reasons = bill.flag_reasons.length ? ` ${bill.flag_reasons.join("; ")}.` : "";
+
   return (
     <>
       <ToastFromParam param="saved" messages={SAVED_TOASTS} />
+      <h1 className="sr-only">Home</h1>
       {bill.status !== "approved" && (
         <div className="mb-2">
           <Notice tone={bill.status === "flagged" ? "warning" : "error"}>
             {bill.status === "flagged"
-              ? `The barangay will check this bill before it counts: ${bill.flag_reasons.join("; ")}.`
-              : "The barangay could not verify this bill, so it is not on the ranking."}
+              ? `The barangay will check this bill before it counts.${reasons}`
+              : `The barangay could not verify this bill, so it is not on the ranking.${reasons} You can scan a corrected bill for the same month.`}
           </Notice>
         </div>
       )}
@@ -237,6 +247,7 @@ export default async function HomePage() {
                 <ul className="divide-y divide-border">
                   {tips.map((t) => {
                     const line = receipt.lines.find((l) => l.id === t.lineId)!;
+                    const payback = paybackText(t.paybackMonths);
                     return (
                       <Row
                         key={t.lineId}
@@ -244,7 +255,7 @@ export default async function HomePage() {
                         title={line.label}
                         detail={t.text}
                         value={`${peso(t.monthlySaving)}/mo`}
-                        sub={t.paybackMonths !== null ? `${t.paybackMonths} mo payback` : undefined}
+                        sub={payback ? `${payback} payback` : undefined}
                       />
                     );
                   })}

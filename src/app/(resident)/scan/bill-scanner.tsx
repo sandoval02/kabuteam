@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScanLine } from "lucide-react";
 import { PhotoCapture, postPhoto } from "@/components/photo-capture";
 import { Button, Field, Notice } from "@/components/ui";
@@ -19,22 +19,33 @@ type Stage =
 export function BillScanner() {
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [retake, setRetake] = useState(false);
+  const previewRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    };
+  }, []);
 
   async function onPhoto(file: File) {
     setRetake(false);
     const preview = URL.createObjectURL(file);
+    previewRef.current = preview;
     setStage({ kind: "reading", preview });
     const { data, error } = await postPhoto<ExtractResponse>("/api/extract/bill", file);
+    // The preview is only shown while reading; the review form uses the saved photo path.
+    URL.revokeObjectURL(preview);
+    if (previewRef.current === preview) previewRef.current = null;
     if (error || !data) {
-      setStage({ kind: "review", preview, res: null, note: error });
+      setStage({ kind: "review", preview: null, res: null, note: error });
     } else if (!data.extraction) {
-      setStage({ kind: "review", preview, res: data, note: "Could not read this automatically. Type the numbers from your bill." });
+      setStage({ kind: "review", preview: null, res: data, note: "Could not read this automatically. Type the numbers from your bill." });
     } else if (!data.extraction.readable) {
       // A bad photo won't improve with another model: ask for a retake (saves AI quota).
       setStage({ kind: "idle" });
       setRetake(true);
     } else {
-      setStage({ kind: "review", preview, res: data });
+      setStage({ kind: "review", preview: null, res: data });
     }
   }
 

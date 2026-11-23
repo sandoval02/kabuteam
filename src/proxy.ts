@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth/callback"];
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/robots.txt", "/sitemap.xml"];
 const isPublicPath = (path: string) => path === "/" || PUBLIC_PATHS.some((p) => path.startsWith(p));
 
 // Keeps the Supabase session cookie fresh and sends signed-out visitors to /login.

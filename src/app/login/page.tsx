@@ -12,6 +12,8 @@ const COPY = {
   up: { title: "Create your account", sub: "See what each appliance costs you, and save with your barangay." },
 };
 
+export const metadata = { title: "Sign in · Kuryentipid" };
+
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ mode?: string; error?: string }> }) {
   if (await getViewer()) redirect("/");
   const params = await searchParams;

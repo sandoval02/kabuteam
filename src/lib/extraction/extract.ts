@@ -15,7 +15,7 @@ export type ExtractResult<T> =
 
 type Step = { name: string; run: (img: Image, prompt: string, jsonSchema: object) => Promise<string> };
 
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 15_000;
 
 export class BadInputError extends Error {}
 

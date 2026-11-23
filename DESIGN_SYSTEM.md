@@ -18,7 +18,7 @@
 
 ### Sizes (compact)
 
-Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding. Headings: display 28px, section 18px; amounts 24px (all before the 90% scale). Bottom nav 48px, floating pill.
+Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding. Headings: display 28px, section 18px; amounts 24px (all before the 90% scale). Bottom nav 56px, floating pill.
 
 ### Color
 
@@ -42,7 +42,7 @@ QR codes stay dark-on-white so any phone camera can scan them. The "Continue wit
 | Body, UI | **Plus Jakarta Sans** (`--font-sans`) | |
 | Numbers, codes, receipt | **JetBrains Mono** (`.num`, `--font-mono`) | `tabular-nums` |
 
-Sizes: display 32/38, h2 20/28, body 16/26, small 14/20 (minimum), amount-lg 28/36. Wordmark: the logo mark (`public/logo.png`, house-shaped receipt on a white tile, 28px) then "Tipid**Tayo**" in Sora bold, "Tayo" in lime. App icons: `src/app/icon.png`, `src/app/apple-icon.png`. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
+Sizes: display 28/34, h2 18/24, body 16/26, small 14/20 (minimum), amount-lg 24/32. Wordmark: the logo mark (`public/logo.png`, house-shaped receipt on a white tile, 28px) then "Kuryen**tipid**" in Sora bold, "tipid" in lime. App icons: `src/app/icon.png`, `src/app/apple-icon.png`. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
 
 ### Spacing
 
@@ -89,13 +89,13 @@ Navs float: rounded-lg, 45–70% background with `backdrop-blur`, a hairline rin
 **Landing page** (requested by the project owner): three pieces of motion, each explaining a real mechanic:
 - **Three.js** street of example houses: bar height = the real fair-score formula; drag to orbit, hover for the numbers. Auto-rotate off under reduced motion. A screen-reader table carries the same data.
 - **GSAP** ScrollTrigger: the example receipt unrolls as you scroll and step numbers fill in. Text keeps full contrast at every scroll position.
-- **Motion** springs on the fair-score slider bars.
+- **CSS height transitions** on the fair-score slider bars.
 
-Everything is disabled under `prefers-reduced-motion` (final state shown). Three.js loads client-side only, after the page text.
+Everything is disabled under `prefers-reduced-motion` (final state shown). Three.js starts with a static bar view: phones load it when the reader taps View 3D, desktop after the page is idle; GSAP loads only when the receipt section approaches the viewport.
 
 ## Components
 
-Defined once in `src/components/ui/`. Every interactive component has: default, hover, focus-visible, active, disabled, loading.
+Defined once in `src/components/ui.tsx`, `field.tsx` and `form.tsx`. Every interactive component has: default, hover, focus-visible, active, disabled, loading.
 
 | Component | Spec |
 |---|---|
@@ -108,7 +108,7 @@ Defined once in `src/components/ui/`. Every interactive component has: default, 
 | **VoucherCard** | Big QR code, 6-character fallback code in mono, store name, amount, expiry. States: active, redeemed (greyed out with "Used on <date>"), expired. |
 | **Modal / bottom sheet** | Bottom sheet on mobile, centered modal ≥ md. Focus trapped, Esc and backdrop close, focus returns to trigger. |
 | **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
-| **Toast** | Bottom, above nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
+| **Toast** | Bottom-center, 96px above the viewport edge so it clears the floating nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
 | **Skeleton** | Grey `--color-border` blocks matching the final layout, pulsing (still under reduced motion). Each nav page (Home, Scan, Ranking, Vouchers) has a `loading.tsx`, so a nav tap switches instantly to the skeleton; the tapped nav icon shows a spinner until the page arrives. |
 | **PageHero / CardSection** | The Profile layout, used on Profile, Scan, Ranking and Vouchers: a 96px lime circle (icon or avatar), centered display title and muted subtitle, then content in cards whose `font-semibold` heading (with optional 14px icon) sits inside the card. Login and register (`/login`, `/login?mode=up`) use PageHero with the house illustration as the visual and a per-mode title; Home follows it with a centered hero and card-wrapped content. |
 

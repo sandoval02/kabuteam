@@ -1,8 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-
-export type ThemeChoice = "light" | "dark" | "system";
+import type { ThemeChoice } from "@/lib/theme";
 
 /** Saves the theme in a cookie so the server renders the right theme with no flash. */
 export async function saveTheme(theme: ThemeChoice) {

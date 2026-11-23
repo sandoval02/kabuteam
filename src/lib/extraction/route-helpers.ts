@@ -46,13 +46,15 @@ export async function readImageRequest(
   if (!viewer) return jsonError(401, "unauthenticated", "Sign in first.");
   if (viewer.role !== "resident") return jsonError(403, "forbidden", "Only residents can scan.");
 
-  const limited = await checkExtractionLimit(viewer.userId, kind);
-  if (limited) return limited;
-
   const form = await request.formData().catch(() => null);
   const file = form?.get("photo");
   if (!(file instanceof File)) return jsonError(400, "no_photo", "Attach a photo.");
   if (!TYPES.includes(file.type)) return jsonError(400, "bad_type", "Use a JPEG, PNG or WebP photo.");
   if (file.size > MAX_BYTES) return jsonError(413, "too_large", "Photo is larger than 8 MB.");
+
+  // Only valid uploads consume the hourly scan allowance.
+  const limited = await checkExtractionLimit(viewer.userId, kind);
+  if (limited) return limited;
+
   return { viewer, bytes: Buffer.from(await file.arrayBuffer()), mimeType: file.type };
 }

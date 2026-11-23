@@ -4,6 +4,8 @@ import { BADGES, getLeaderboard, monthLabel } from "@/lib/data";
 import { CardSection, Notice, PageHero } from "@/components/ui";
 import { RankingList } from "./ranking-list";
 
+export const metadata = { title: "Ranking · Kuryentipid" };
+
 export default async function RankingPage() {
   const viewer = await requireViewer("resident");
   const { month, rows } = await getLeaderboard(viewer.barangayId);

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Plug, ReceiptText, ScanLine } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getAppliances, getLatestBill, monthLabel } from "@/lib/data";
@@ -5,6 +6,8 @@ import { CardSection, Notice, PageHero, kwh } from "@/components/ui";
 import { DeleteAppliance } from "./delete-appliance";
 import { BillScanner } from "./bill-scanner";
 import { ApplianceForm } from "./appliance-form";
+
+export const metadata = { title: "Scan · Kuryentipid" };
 
 export default async function ScanPage() {
   const viewer = await requireViewer("resident");
@@ -17,8 +20,13 @@ export default async function ScanPage() {
       <CardSection title="Electric bill" icon={ReceiptText}>
         {bill && (
           <div className="mb-3">
-            <Notice tone="info">
-              Last saved: {monthLabel(bill.score_month)} bill, {kwh(bill.kwh)}. Scan your next bill when it arrives.
+            <Notice tone={bill.status === "rejected" ? "warning" : "info"}>
+              {bill.status === "rejected"
+                ? `The ${monthLabel(bill.score_month)} bill was not verified. Scan a corrected bill for the same month, or ask the barangay.`
+                : `Last saved: ${monthLabel(bill.score_month)} bill, ${kwh(bill.kwh)}. Scan your next bill when it arrives.`}{" "}
+              <Link href="/receipt" className="font-semibold underline">
+                View receipt
+              </Link>
             </Notice>
           </div>
         )}

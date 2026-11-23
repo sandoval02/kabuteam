@@ -32,7 +32,7 @@ Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding.
 | `--color-warning` | `#fbbf24` | Unaccounted line, flags | 10.6:1 |
 | `--color-error` | `#f87171` | Errors | 6.4:1 |
 
-QR codes stay dark-on-white so any phone camera can scan them. The Google sign-in button is rendered by Google itself (Google Identity Services: pill shape, large, outline in light / filled black in dark), so its colors follow Google's branding rules; it is the only non-token color in the app.
+QR codes stay dark-on-white so any phone camera can scan them. "Continue with Google" uses the app's secondary button (full width, pill) with Google's official four-color G mark (required by Google's branding rules); the G is the only non-token color in the app.
 
 ### Typography
 
@@ -103,7 +103,7 @@ Defined once in `src/components/ui/`. Every interactive component has: default, 
 | **VoucherCard** | Big QR code, 6-character fallback code in mono, store name, amount, expiry. States: active, redeemed (greyed out with "Used on <date>"), expired. |
 | **Modal / bottom sheet** | Bottom sheet on mobile, centered modal ≥ md. Focus trapped, Esc and backdrop close, focus returns to trigger. |
 | **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
-| **Login / register** | `/login` and `/login?mode=up` (`&role=store` / `&role=admin` preselects a role). Wordmark lockup in the header, then two columns at `lg` (one column below, form first): title + form card + privacy line; a lime panel listing the billing month (date, who, what) in ink. Sign-up form order: "I'm joining as" role rows (`House` Household, `Store` Sari-sari store, `Landmark` Barangay admin; selected row is lime), the role's extra field (store name or admin access code), the consent checkbox (`CheckField`), Google's button, "or with email", name/email/password, Create account. |
+| **Login / register** | `/login` and `/login?mode=up` (`&role=store` / `&role=admin` preselects a role). Wordmark lockup in the header, then two columns at `lg` (one column below, form first): title + form card + privacy line; a lime panel listing the billing month (date, who, what) in ink. Sign-up form order: "I'm joining as" role rows (`House` Household, `Store` Sari-sari store, `Landmark` Barangay admin; selected row is lime), the role's extra field (store name or admin access code), the consent checkbox (`CheckField`), "Sign up with Google" (secondary button), "or with email", name/email/password, Create account. |
 | **Toast** | Bottom-center, 96px above the viewport edge so it clears the floating nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
 | **Skeleton** | Grey `--color-border` blocks matching the final layout, pulsing (still under reduced motion). Each nav page (Home, Scan, Ranking, Vouchers) has a `loading.tsx`, so a nav tap switches instantly to the skeleton; the tapped nav icon shows a spinner until the page arrives. |
 | **PageHero / CardSection** | The Profile layout, used on Profile only (Ranking and Vouchers open with a lime card of real numbers instead): a 96px lime circle (icon or avatar), centered display title and muted subtitle, then content in cards whose `font-semibold` heading (with optional 14px icon) sits inside the card. Home follows it with a centered hero and card-wrapped content. |

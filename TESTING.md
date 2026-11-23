@@ -12,6 +12,8 @@
 - [ ] No placeholder content
 - [ ] `npx impeccable detect src/` and `npx impeccable detect http://localhost:3000` report no findings (or each remaining one is waived with a reason)
 - [ ] Keyboard: every action reachable with Tab/Enter/Esc, focus visible
+- [ ] Google sign-in reaches Google, returns to the app and lands on the right home; cancelling shows a recoverable error
+- [ ] Email/password sign-in and sign-up still work
 - [ ] Contrast meets WCAG AA
 - [ ] README setup steps work on a fresh clone
 
@@ -20,6 +22,7 @@
 - Empty, very long, and special-character input (`<script>`, emoji, 10k chars)
 - Double-clicking submit buttons
 - Logged-out access to protected pages and endpoints
+- Google OAuth cancelled on the consent screen, and `/auth/callback` opened with no code
 - Slow or failed AI/external API responses
 - Refresh mid-flow
 

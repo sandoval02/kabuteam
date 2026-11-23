@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Field } from "@/components/ui";
+import { GoogleSignIn } from "@/components/google-sign-in";
 import { SubmitButton } from "@/components/submit-button";
 import { ValidatedForm } from "@/components/form";
 import { signIn, signUp } from "./actions";
@@ -11,6 +12,12 @@ export function AuthForms({ initialMode = "in" }: { initialMode?: "in" | "up" })
 
   return (
     <div className="mt-8 rounded-md bg-surface p-4 shadow-receipt">
+      <GoogleSignIn />
+      <div className="my-4 flex items-center gap-3">
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-small text-muted">or use email</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
       <div role="tablist" aria-label="Account" className="mb-4 grid grid-cols-2 gap-1 rounded-full bg-surface-2 p-1">
         {(["in", "up"] as const).map((m) => (
           <button

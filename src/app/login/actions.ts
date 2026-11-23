@@ -3,14 +3,9 @@
 import { redirect } from "next/navigation";
 import { credentials, parseForm, type FormState } from "@/lib/validation";
 import { createAdminClient, createUserClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/admin-emails";
 
 export type AuthState = FormState;
-
-const adminEmails = () =>
-  (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
 
 export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
   const parsed = parseForm(credentials, form);
@@ -35,7 +30,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
       ? { error: "That email already has an account. Sign in instead.", fieldErrors: { email: "Already registered" } }
       : { error: "Could not create the account. Try again." };
   }
-  if (adminEmails().includes(parsed.data.email)) {
+  if (isAdminEmail(parsed.data.email)) {
     await admin.from("profiles").update({ role: "admin" }).eq("id", data.user.id);
   }
 

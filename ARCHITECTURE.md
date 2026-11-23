@@ -26,7 +26,7 @@ One Next.js app (App Router, TypeScript) deployed on Vercel. The browser takes p
 | `store` | Redeem vouchers for their own store |
 | `admin` | Review flagged bills, set voucher pool, manage partner stores, for their barangay |
 
-Stored in `profiles.role`. Login: Supabase Auth with email + password. Sign-up runs on the server and creates the user already confirmed (no email round-trip). Emails in `ADMIN_EMAILS` become admins on sign-up; admins turn an account into a store owner from the admin page.
+Stored in `profiles.role`. Login: Supabase Auth with email + password or **Google OAuth**. Password sign-up runs on the server and creates the user already confirmed (no email round-trip). Google sign-in sends the browser to Google and back to `/auth/callback`, which exchanges the code for a session; the `on_auth_user_created` trigger creates the profile and household on first sign-in either way. Emails in `ADMIN_EMAILS` become admins on password sign-up or in the OAuth callback; admins turn an account into a store owner from the admin page.
 
 ## AI extraction (fallback chain)
 
@@ -185,3 +185,4 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | 2026-11-23 | Landing page with Three.js, GSAP, Motion, Inter font | Requested by the project owner; each animation shows a real mechanic, reduced motion respected; Inter waived in `.impeccable/config.json` |
 | 2026-11-23 | Gemini (free) first, fallback chain Flash → Flash-Lite → optional Claude Haiku → manual entry | Zero cost for the hackathon; separate per-model quotas plus a fallback keep scanning working when one quota or provider fails |
 | 2026-11-23 | Light mode only | One well-tested theme; dark mode not needed for MVP |
+| 2026-11-23 | Google OAuth sign-in beside email/password; role promotion in `/auth/callback` | Less friction for residents (no password to create/remember). Email/password is kept for demo, store and admin accounts. The callback reuses the `ADMIN_EMAILS` rule so a Google sign-in can still become a barangay admin |

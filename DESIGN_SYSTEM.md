@@ -72,6 +72,8 @@ Navs float: rounded-lg, 45–70% background with `backdrop-blur`, a hairline rin
 
 **Lucide** only (`lucide-react`), stroke 1.75, sizes 16 / 20 / 24. No emoji anywhere in the UI. Icon-only buttons need `aria-label`; decorative icons get `aria-hidden`.
 
+Exception: the official Google "G" mark inside the sign-in button. Its brand colors stay confined to the mark; everything around it uses tokens.
+
 | Meaning | Icon |
 |---|---|
 | Scan | `ScanLine` |
@@ -100,6 +102,7 @@ Defined once in `src/components/ui/`. Every interactive component has: default, 
 | Component | Spec |
 |---|---|
 | **Button** | Variants: `primary` (filled primary), `secondary` (surface + `border-strong`), `ghost` (text only), `destructive` (filled error). Height 44px; full-width on mobile for the screen's primary action. Loading: spinner replaces the icon, label stays, width doesn't change, button disabled. |
+| **OAuth button** | Secondary button, full-width, official provider mark on the left (the one exception to Lucide-only). Loading swaps the mark for a spinner and the label to "Opening Google…"; failure shows an inline error with `TriangleAlert`. |
 | **Input / form** | Label always visible above the field. 44px height, `border-strong` 1px, focus ring `--color-focus`. Helper text below in `text-small` muted; error text replaces helper in `--color-error` with `TriangleAlert`. Numeric fields use `inputmode="decimal"`. |
 | **PhotoCapture** | One big target: "Take photo of your bill" with `ScanLine`. Uses `<input type="file" accept="image/*" capture="environment">` (opens the phone camera, no library). Shows a thumbnail after capture with "Retake". |
 | **Receipt** | White surface, `--radius-md`, `--shadow-sm`. Header: barangay name, billing period. Lines: appliance name left, kWh and ₱ right in mono. Dashed `border-dashed` dividers. "Unaccounted" line in `--color-warning` with icon. Footer: bill total (must equal the sum). |

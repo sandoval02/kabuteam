@@ -103,7 +103,7 @@ No dependency gets added beyond this list without a written reason.
 |---|---|---|
 | Frontend + backend | **Next.js** (App Router, TypeScript strict) | Screens and server code in one project and one deploy; server code keeps the AI key secret |
 | Database | **Supabase Postgres** | Real SQL with constraints (unique account number, single-use voucher) and Row Level Security for the three roles |
-| Auth | **Supabase Auth** (email + password) | Comes with the database. Accounts are created server-side as confirmed, because Supabase's built-in mailer allows only a few emails per hour, which would break a live demo |
+| Auth | **Supabase Auth** (email + password, Google OAuth) | Comes with the database. Google sign-in cuts the sign-up friction for residents; email/password stays for demo, store and admin accounts. Accounts are created server-side as confirmed, because Supabase's built-in mailer allows only a few emails per hour, which would break a live demo |
 | File storage | **Supabase Storage** (private bucket) | Bill photos stay private to the owner and their barangay admin |
 | AI | **Gemini** via `@google/genai` (free tier) in a fallback chain: Flash → Flash-Lite → optional **Claude Haiku 5.5** (`@anthropic-ai/sdk`) → manual entry. Structured JSON validated with Zod | Free for the hackathon; if one model hits its quota or fails, the next catches it, and manual entry means scanning never dead-ends |
 | Validation | **Zod** | One schema validates both AI output and user input |
@@ -139,6 +139,36 @@ npm run e2e                     # full demo loop in Microsoft Edge (dev server m
 The first admin: put their email in `ADMIN_EMAILS` before they create their account. Store owners create an account, then the admin links them on the admin page.
 
 **Demo accounts** (after `npm run seed:demo`): `resident@`, `neighbor@`, `admin@`, `store@tipidtayo.test` plus 5 more households, all with `DEMO_PASSWORD`. See [DEMO.md](DEMO.md) for the 2-minute demo script.
+
+### Google sign-in
+
+Google sign-in needs a Web OAuth client from the [Google Auth Platform](https://console.cloud.google.com/auth/overview) (External audience, Testing is fine; add the demo accounts as test users):
+
+- Authorized JavaScript origins: `http://localhost:3000`, `http://127.0.0.1:3000`
+- Authorized redirect URI (local Supabase): `http://127.0.0.1:54321/auth/v1/callback`
+- Authorized redirect URI (cloud Supabase): `https://<project-ref>.supabase.co/auth/v1/callback`
+- Scopes: `openid`, `.../userinfo.email`, `.../userinfo.profile`
+
+Cloud project: enable the Google provider in Supabase → Authentication → Providers with the client ID/secret, and allow the app URL in Auth → URL Configuration.
+
+Local Supabase (`npx supabase start`): add this block to `supabase/config.toml`, then restart with the credentials exported:
+
+```toml
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+skip_nonce_check = true
+```
+
+```powershell
+$env:SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID="<client id>"
+$env:SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET="<client secret>"
+npx supabase stop
+npx supabase start
+```
+
+Secrets never go in the repo. Google sign-ups get a resident profile automatically; put the admin's Google email in `ADMIN_EMAILS` before their first sign-in.
 
 ## 5. Execution workflow
 

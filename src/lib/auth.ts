@@ -3,6 +3,13 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createAdminClient, createUserClient } from "@/lib/supabase/server";
 
+/** Emails in ADMIN_EMAILS become barangay admins when their account is created. */
+export const adminEmails = () =>
+  (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
 export type Role = "resident" | "store" | "admin";
 export type Viewer = {
   userId: string;

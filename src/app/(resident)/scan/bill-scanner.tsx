@@ -45,7 +45,7 @@ export function BillScanner() {
           <Notice tone="warning">That photo could not be read as a bill. Retake it flat, in good light, with the whole page in view.</Notice>
         )}
         {stage.kind === "reading" ? (
-          <div className="relative overflow-hidden rounded-md bg-surface shadow-receipt" aria-live="polite">
+          <div className="relative overflow-hidden rounded-sm bg-surface-2" aria-live="polite">
             {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
             <img src={stage.preview} alt="Your bill photo" className="max-h-64 w-full object-contain opacity-50" />
             <p className="absolute inset-0 flex items-center justify-center gap-2 font-semibold">

@@ -1,4 +1,4 @@
-# Design System: TipidTayo
+# Design System: Kuryentipid
 
 **Rule:** no arbitrary colors, font sizes, spacing, radii or shadows. Use only the tokens below. Need a new value? Add it here first, with a reason.
 
@@ -32,7 +32,7 @@ Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding.
 | `--color-warning` | `#fbbf24` | Unaccounted line, flags | 10.6:1 |
 | `--color-error` | `#f87171` | Errors | 6.4:1 |
 
-QR codes stay dark-on-white so any phone camera can scan them.
+QR codes stay dark-on-white so any phone camera can scan them. The "Continue with Google" button uses Google's official four-color G mark (required by Google's branding rules); it is the only non-token color in the app.
 
 ### Typography
 
@@ -42,7 +42,7 @@ QR codes stay dark-on-white so any phone camera can scan them.
 | Body, UI | **Plus Jakarta Sans** (`--font-sans`) | |
 | Numbers, codes, receipt | **JetBrains Mono** (`.num`, `--font-mono`) | `tabular-nums` |
 
-Sizes: display 32/38, h2 20/28, body 16/26, small 14/20 (minimum), amount-lg 28/36. Wordmark: "Tipid**Tayo**" in Sora bold, "Tayo" in lime. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
+Sizes: display 32/38, h2 20/28, body 16/26, small 14/20 (minimum), amount-lg 28/36. Wordmark: the logo mark (`public/logo.png`, house-shaped receipt on a white tile, 28px) then "Tipid**Tayo**" in Sora bold, "Tayo" in lime. App icons: `src/app/icon.png`, `src/app/apple-icon.png`. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
 
 ### Spacing
 
@@ -109,7 +109,8 @@ Defined once in `src/components/ui/`. Every interactive component has: default, 
 | **Modal / bottom sheet** | Bottom sheet on mobile, centered modal ≥ md. Focus trapped, Esc and backdrop close, focus returns to trigger. |
 | **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
 | **Toast** | Bottom, above nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
-| **Skeleton** | Grey `--color-border` blocks matching the final layout, for receipt and leaderboard loading. |
+| **Skeleton** | Grey `--color-border` blocks matching the final layout, pulsing (still under reduced motion). Each nav page (Home, Scan, Ranking, Vouchers) has a `loading.tsx`, so a nav tap switches instantly to the skeleton; the tapped nav icon shows a spinner until the page arrives. |
+| **PageHero / CardSection** | The Profile layout, used on Profile, Scan, Ranking and Vouchers: a 96px lime circle (icon or avatar), centered display title and muted subtitle, then content in cards whose `font-semibold` heading (with optional 14px icon) sits inside the card. Login and register (`/login`, `/login?mode=up`) use PageHero with the house illustration as the visual and a per-mode title; Home follows it with a centered hero and card-wrapped content. |
 
 ## Anti-slop rules
 

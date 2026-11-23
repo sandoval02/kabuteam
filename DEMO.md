@@ -1,4 +1,4 @@
-# Demo: TipidTayo in under 2 minutes
+# Demo: Kuryentipid in under 2 minutes
 
 **Before you go on stage**
 - `npm run seed:demo` has been run (demo barangay with 7 households, 1 bill waiting for review).
@@ -12,7 +12,7 @@
 | Time | Say | Do |
 |---|---|---|
 | 0:00 | "This is Mang Jun's Meralco bill. ₱1,469. One number. He has no idea which appliance is eating it." | Hold up the bill. |
-| 0:10 | "TipidTayo reads it." | Resident phone → **Scan** → Take photo. Fields fill in, including the 12-month chart. **Looks right, save** → confirm. |
+| 0:10 | "Kuryentipid reads it." | Resident phone → **Scan** → Take photo. Fields fill in, including the 12-month chart. **Looks right, save** → confirm. |
 | 0:30 | "Now his appliances." | Scan the aircon sticker: 1,050 W, non-inverter. Set 2 h a day. **Add appliance**. |
 | 0:45 | "Here's his bill as a receipt. The aircon is half of it, and part of the bill isn't explained by anything he owns. That's the Unaccounted line: a worn ref seal, standby devices, or a leak." | **Home → Full receipt**. |
 | 1:00 | "The fix: an inverter aircon saves about ₱300 a month." | Point at **Change this first**. |

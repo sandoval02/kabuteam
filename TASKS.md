@@ -1,4 +1,4 @@
-# Tasks: TipidTayo
+# Tasks: Kuryentipid
 
 Order matters: the core loop first, polish last. Each task is about 2 hours or less. Times are a share of the total hackathon time, so scale them to your event's length.
 

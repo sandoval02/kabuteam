@@ -45,7 +45,7 @@ export function RankingList({
 
   return (
     <>
-      <ol className="divide-y divide-border rounded-md bg-surface shadow-receipt">
+      <ol className="divide-y divide-border">
         {rows.map((r, i) => {
           const isMe = i === mine;
           return (
@@ -53,7 +53,7 @@ export function RankingList({
               key={r.householdId}
               ref={isMe ? myRow : undefined}
               aria-current={isMe ? "true" : undefined}
-              className={`flex items-center gap-3 px-4 py-3 first:rounded-t-md last:rounded-b-md ${isMe ? "bg-primary-soft" : ""}`}
+              className={`flex items-center gap-3 rounded-sm px-2 py-2.5 ${isMe ? "bg-primary-soft" : ""}`}
             >
               <span
                 className={`num flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-semibold ${

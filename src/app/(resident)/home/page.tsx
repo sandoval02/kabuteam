@@ -80,7 +80,7 @@ export default async function HomePage() {
     return (
       <>
         <ToastFromParam param="saved" messages={SAVED_TOASTS} />
-        <section className="pt-2">
+        <section className="flex flex-col items-center pt-2 text-center">
           <p className="text-small text-muted">Your electric bill</p>
           <p className="num mt-0.5 text-[2.25rem] font-semibold leading-tight">₱—</p>
           <p className="text-small text-muted">
@@ -88,7 +88,7 @@ export default async function HomePage() {
           </p>
         </section>
         <Actions hasBill={false} />
-        <div className="mt-6">
+        <div className="mt-6 rounded-md bg-surface p-3.5 shadow-receipt">
           <Tabs
             tabs={[
               {
@@ -149,11 +149,11 @@ export default async function HomePage() {
         </div>
       )}
 
-      <section className="flex items-end justify-between gap-3 pt-2">
+      <section className="flex flex-col items-center gap-2 pt-2 text-center">
         <div className="min-w-0">
           <p className="text-small text-muted">Amount due · {monthLabel(bill.score_month)}</p>
           <p className="num mt-0.5 text-[2.25rem] font-semibold leading-tight">{peso(bill.amount_due)}</p>
-          <p className="num flex flex-wrap items-center gap-x-1.5 text-small">
+          <p className="num flex flex-wrap items-center justify-center gap-x-1.5 text-small">
             {saving !== null && baseline !== null ? (
               <span className={`inline-flex items-center font-semibold ${saving >= 0 ? "text-success" : "text-warning"}`}>
                 {saving >= 0 ? <ArrowDownRight size={14} aria-hidden /> : <ArrowUpRight size={14} aria-hidden />}
@@ -174,7 +174,7 @@ export default async function HomePage() {
 
       <Actions hasBill />
 
-      <div className="mt-6">
+      <div className="mt-6 rounded-md bg-surface p-3.5 shadow-receipt">
         <Tabs
           tabs={[
             {

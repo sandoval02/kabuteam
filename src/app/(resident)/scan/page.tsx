@@ -1,7 +1,7 @@
-import { Plug, ReceiptText } from "lucide-react";
+import { Plug, ReceiptText, ScanLine } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getAppliances, getLatestBill, monthLabel } from "@/lib/data";
-import { Notice, PageTitle, Section, kwh } from "@/components/ui";
+import { CardSection, Notice, PageHero, kwh } from "@/components/ui";
 import { DeleteAppliance } from "./delete-appliance";
 import { BillScanner } from "./bill-scanner";
 import { ApplianceForm } from "./appliance-form";
@@ -12,9 +12,9 @@ export default async function ScanPage() {
 
   return (
     <>
-      <PageTitle sub="Your bill shows the total. Your appliances show where it goes.">Scan</PageTitle>
+      <PageHero icon={ScanLine} title="Scan" sub="Your bill shows the total. Your appliances show where it goes." />
 
-      <Section title="Electric bill" icon={ReceiptText}>
+      <CardSection title="Electric bill" icon={ReceiptText}>
         {bill && (
           <div className="mb-3">
             <Notice tone="info">
@@ -23,13 +23,13 @@ export default async function ScanPage() {
           </div>
         )}
         <BillScanner />
-      </Section>
+      </CardSection>
 
-      <Section title="Appliances" icon={Plug} id="appliances">
+      <CardSection title="Appliances" icon={Plug} id="appliances">
         {appliances.length > 0 && (
-          <ul className="mb-4 divide-y divide-border rounded-md bg-surface shadow-receipt">
+          <ul className="mb-4 divide-y divide-border">
             {appliances.map((a) => (
-              <li key={a.id} className="flex items-center justify-between gap-3 py-2 pl-4 pr-1">
+              <li key={a.id} className="flex items-center justify-between gap-3 py-2">
                 <div>
                   <p className="font-semibold">{a.label}</p>
                   <p className="num text-small text-muted">
@@ -42,7 +42,7 @@ export default async function ScanPage() {
           </ul>
         )}
         <ApplianceForm />
-      </Section>
+      </CardSection>
     </>
   );
 }

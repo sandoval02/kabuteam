@@ -1,6 +1,7 @@
+import { Trophy, Users } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { BADGES, getLeaderboard, monthLabel } from "@/lib/data";
-import { Notice, PageTitle } from "@/components/ui";
+import { CardSection, Notice, PageHero } from "@/components/ui";
 import { RankingList } from "./ranking-list";
 
 export default async function RankingPage() {
@@ -12,23 +13,25 @@ export default async function RankingPage() {
 
   return (
     <>
-      <PageTitle sub={month ? `${viewer.barangayName} · ${monthLabel(month)} bills` : viewer.barangayName}>Ranking</PageTitle>
-      <p className="mb-4 text-small text-muted">
-        Ranked by % saved against your own usage last year, so a small house can beat a big one. Households using 100 kWh or less score at least
-        15%.
-      </p>
+      <PageHero icon={Trophy} title="Ranking" sub={month ? `${viewer.barangayName} · ${monthLabel(month)} bills` : viewer.barangayName} />
+      <CardSection title="Households" icon={Users}>
+        <p className="mb-3 text-small text-muted">
+          Ranked by % saved against your own usage last year, so a small house can beat a big one. Households using 100 kWh or less score at least
+          15%.
+        </p>
 
-      {rows.length < 2 ? (
-        <Notice tone="info">
-          {rows.length === 1 && mine === 0
-            ? `You're the first for ${monthName ?? "this month"}! The ranking starts when neighbors scan their bills.`
-            : monthName
-              ? `Only one household has a scored ${monthName} bill. The ranking starts when two households have one.`
-              : "No ranking yet. It starts when two households have scanned their bills."}
-        </Notice>
-      ) : (
-        <RankingList rows={rows} mine={mine} badgeLabels={badgeLabels} />
-      )}
+        {rows.length < 2 ? (
+          <Notice tone="info">
+            {rows.length === 1 && mine === 0
+              ? `You're the first for ${monthName ?? "this month"}! The ranking starts when neighbors scan their bills.`
+              : monthName
+                ? `Only one household has a scored ${monthName} bill. The ranking starts when two households have one.`
+                : "No ranking yet. It starts when two households have scanned their bills."}
+          </Notice>
+        ) : (
+          <RankingList rows={rows} mine={mine} badgeLabels={badgeLabels} />
+        )}
+      </CardSection>
     </>
   );
 }

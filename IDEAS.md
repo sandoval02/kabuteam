@@ -1,4 +1,4 @@
-# TipidTayo: The Idea
+# Kuryentipid: The Idea
 
 > Your electric bill, itemized. Scan your Meralco bill and appliance stickers to see what each appliance costs you, then compete with your barangay on **% saved**, not raw kWh, for sari-sari store vouchers.
 
@@ -37,7 +37,7 @@ You compete against **your own usage**, not your neighbors' kWh. A small house c
 Example: small house 150 → 117 kWh = **22%**. Big house 1,000 → 940 kWh = **6%**. The small house ranks higher even though the big one saved more kWh.
 
 ### Twist 2: The receipt has to add up
-Most energy apps multiply wattage × guessed hours, and the totals never match the bill. TipidTayo **calibrates the appliance estimates to the real bill total**. Usage the appliances can't explain shows as an **"Unaccounted" line**, which can point to a forgotten appliance, a worn ref door seal, standby devices, or a wiring leak.
+Most energy apps multiply wattage × guessed hours, and the totals never match the bill. Kuryentipid **calibrates the appliance estimates to the real bill total**. Usage the appliances can't explain shows as an **"Unaccounted" line**, which can point to a forgotten appliance, a worn ref door seal, standby devices, or a wiring leak.
 
 ## 4. What the app does (built and working)
 

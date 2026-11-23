@@ -1,4 +1,4 @@
-# Architecture: TipidTayo
+# Architecture: Kuryentipid
 
 ## Overview
 
@@ -198,3 +198,5 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | 2026-11-23 | Route error boundaries and a branded 404; data reads throw instead of returning empty | A database or network failure must not look like “no bill” or “no ranking” |
 | 2026-11-23 | Admin/store auth lives in a segment `layout.tsx` above their loading UI | The skeleton must not show an admin/store shell to the wrong role before the redirect |
 | 2026-11-23 | Baseline security headers in `next.config.ts` | `nosniff`, referrer policy, frame denial, camera-only permissions and HSTS; a strict CSP is deferred until the Next runtime is tested with it |
+| 2026-11-23 | Google sign-in via Supabase OAuth (PKCE, `/auth/callback`); Google client ID/secret live only in Supabase, never in the app | Requested by the project owner; one-tap sign-up on phones. The `on_auth_user_created` trigger sets up Google users like any other; the callback copies their Google name and applies `ADMIN_EMAILS` |
+| 2026-11-23 | Failed sign-in reports "not registered" / "uses Google" / "wrong password" via the service-role-only `auth_email_status()` function | Requested by the project owner. Trade-off: it reveals whether an email has an account (account enumeration); acceptable for a barangay demo, revisit with rate limiting before wider launch |

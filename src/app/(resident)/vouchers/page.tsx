@@ -4,7 +4,7 @@ import { Ticket } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getLeaderboard, monthLabel } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/server";
-import { PageTitle, buttonStyles, pct, peso } from "@/components/ui";
+import { CardSection, PageHero, buttonStyles, pct, peso } from "@/components/ui";
 
 export default async function VouchersPage() {
   const viewer = await requireViewer("resident");
@@ -28,12 +28,10 @@ export default async function VouchersPage() {
 
   return (
     <>
-      <PageTitle sub="Show the QR code at the partner store.">Vouchers</PageTitle>
+      <PageHero icon={Ticket} title="Vouchers" sub="Show the QR code at the partner store." />
       {vouchers.length === 0 ? (
-        <div className="rounded-md bg-surface shadow-receipt p-4">
-          <Ticket size={18} strokeWidth={1.75} aria-hidden className="text-muted" />
-          <p className="mt-2 font-semibold">No vouchers yet</p>
-          <p className="mt-1 text-muted">
+        <CardSection title="No vouchers yet" icon={Ticket}>
+          <p className="text-muted">
             Each month the barangay gives vouchers at partner sari-sari stores to its top savers.
             {myRank >= 0 && board.month && (
               <>
@@ -46,18 +44,18 @@ export default async function VouchersPage() {
           <Link href="/ranking" className={`${buttonStyles.secondary} mt-4`}>
             See the ranking
           </Link>
-        </div>
+        </CardSection>
       ) : (
-        <ul className="flex flex-col gap-4">
+        <ul className="flex flex-col gap-3">
           {vouchers.map((v) => (
             <li
               key={v.id}
-              className={`rounded-md bg-surface shadow-receipt p-4 ${v.state !== "active" ? "opacity-60" : ""}`}
+              className={`rounded-md bg-surface p-3.5 shadow-receipt ${v.state !== "active" ? "opacity-60" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="flex items-center gap-2 font-semibold">
-                    <Ticket size={15} strokeWidth={1.75} aria-hidden />
+                    <Ticket size={14} strokeWidth={1.75} aria-hidden />
                     {peso(Number(v.amount))} off at {v.store}
                   </p>
                   <p className="text-small text-muted">Top saver, {monthLabel(v.score_month)}</p>

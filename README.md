@@ -1,4 +1,4 @@
-# TipidTayo
+# Kuryentipid
 
 > Your barangay's fair energy-saving challenge. Scan your Meralco bill and your appliance stickers to see what each appliance really costs you, then compete with your neighbors on **% saved**, not raw kWh, for badges and sari-sari store vouchers.
 
@@ -88,7 +88,7 @@ All rows apply. Fill in an owner for each; one person can own several.
 | Backend | Server Actions, extraction routes, scoring logic | |
 | Database | Supabase schema, constraints, RLS policies, leaderboard view | |
 | AI integration | Claude vision extraction with Zod schemas; testing on real Meralco bills and stickers | |
-| Authentication | Supabase email + password login (accounts created server-side, already confirmed), three roles | |
+| Authentication | Supabase email + password login (accounts created server-side, already confirmed) or Google sign-in (Supabase OAuth, callback at `/auth/callback`), three roles. A failed sign-in says whether the email isn't registered, uses Google, or has the wrong password | |
 | Git/GitHub | Branching and merges per CONTRIBUTING.md | |
 | Testing | Scoring unit checks; TESTING.md run-through | |
 | Deployment | Vercel + Supabase project, env vars | |
@@ -127,7 +127,7 @@ No dependency gets added beyond this list without a written reason.
 ## 4. Getting started
 
 ```bash
-git clone <repo> && cd tipidtayo
+git clone <repo> && cd kuryentipid
 cp .env.example .env.local      # fill in values (see comments in the file)
 npm install
 npm run db:migrate              # apply supabase/migrations (needs SUPABASE_DB_URL)

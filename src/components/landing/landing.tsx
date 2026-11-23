@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Award, Ticket, ShieldCheck, Zap } from "lucide-react";
 import { CtaLabel, IconTile, buttonStyles } from "@/components/ui";
@@ -16,8 +17,9 @@ export function Landing() {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-3 z-50 mx-auto mt-3 flex h-15 w-[min(1120px,calc(100%-1.5rem))] items-center justify-between gap-4 rounded-full bg-surface/85 pl-5 pr-2 shadow-sheet backdrop-blur-xl backdrop-saturate-150">
-        <p className="font-display text-[1.15rem] font-bold tracking-wide">
-          Tipid<span className="ml-0.5 rounded-md bg-lime px-1.5 py-0.5 text-on-lime">Tayo</span>
+        <p className="flex items-center gap-2 font-display text-[1.15rem] font-bold tracking-wide">
+          <Image src="/logo.png" alt="" width={28} height={28} priority />
+          Kuryen<span className="ml-0.5 rounded-md bg-lime px-1.5 py-0.5 text-on-lime">tipid</span>
         </p>
         <nav aria-label="Account" className="flex shrink-0 items-center gap-1 sm:gap-2">
           <Link href="/login" className={`${buttonStyles.ghost} h-10 px-3`}>
@@ -144,7 +146,7 @@ export function Landing() {
       </main>
 
       <footer className="border-t border-border px-4 py-6 text-center text-small text-muted">
-        TipidTayo · Built for a hackathon on SDG 7. Bill photos stay private to you and your barangay admin.
+        Kuryentipid · Built for a hackathon on SDG 7. Bill photos stay private to you and your barangay admin.
       </footer>
     </div>
   );

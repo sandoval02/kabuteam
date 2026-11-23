@@ -92,7 +92,9 @@ export const displayName = z.object({
     .refine((v) => v === "" || v.length >= 2, "Use at least 2 characters, or leave it empty"),
 });
 
-export const schemas = { credentials, bill, appliance, voucherCode, barangayName, store, vouchers, displayName };
+export const signUp = credentials.extend(displayName.shape);
+
+export const schemas = { credentials, signUp, bill, appliance, voucherCode, barangayName, store, vouchers, displayName };
 export type SchemaKey = keyof typeof schemas;
 
 export type FieldErrors = Record<string, string | undefined>;

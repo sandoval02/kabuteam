@@ -44,10 +44,6 @@ export function Notice({ tone, children }: { tone: keyof typeof noticeStyles; ch
 }
 
 /** Grey placeholder block that mirrors the final layout while a screen loads. */
-export function Skeleton({ className = "" }: { className?: string }) {
-  return <div aria-hidden className={`rounded-sm bg-border ${className}`} />;
-}
-
 export function PageTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
     <header className="mb-4">
@@ -90,6 +86,71 @@ export function IconTile({ icon: Icon, tone = "green", size = "md" }: { icon: Lu
     <span aria-hidden className={`flex shrink-0 items-center justify-center ${dims} ${tones[tone]}`}>
       <Icon size={size === "lg" ? 17 : 14} strokeWidth={1.75} />
     </span>
+  );
+}
+
+/** Profile-style page top: a 96px lime circle (or `visual`), centered title and subtitle. */
+export function PageHero({ icon: Icon, visual, title, sub }: { icon?: LucideIcon; visual?: ReactNode; title: ReactNode; sub?: ReactNode }) {
+  return (
+    <section className="mb-5 flex flex-col items-center text-center">
+      {visual ??
+        (Icon && (
+          <span aria-hidden className="flex h-24 w-24 items-center justify-center rounded-full bg-lime text-on-lime ring-2 ring-surface">
+            <Icon size={36} strokeWidth={1.75} />
+          </span>
+        ))}
+      <h1 className="mt-3 text-display font-semibold">{title}</h1>
+      {sub && <p className="text-muted">{sub}</p>}
+    </section>
+  );
+}
+
+/** Profile-style card: heading (with optional icon) inside the card. */
+export function CardSection({ title, icon: Icon, id, children }: { title: ReactNode; icon?: LucideIcon; id?: string; children: ReactNode }) {
+  return (
+    <section id={id} className="mb-3 scroll-mt-16 rounded-md bg-surface p-3.5 shadow-receipt">
+      <h2 className="mb-2 flex items-center gap-2 font-semibold">
+        {Icon && <Icon size={14} strokeWidth={1.75} aria-hidden />}
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/** Grey pulsing placeholder block for loading.tsx skeletons. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  const radius = className.includes("rounded-") ? "" : "rounded-sm";
+  return <span aria-hidden className={`block animate-pulse bg-border motion-reduce:animate-none ${radius} ${className}`} />;
+}
+
+/** Skeleton matching PageHero + CardSection pages. `cards` = number of rows per card. */
+export function PageSkeleton({ cards = [3] }: { cards?: number[] }) {
+  return (
+    <div role="status">
+      <span className="sr-only">Loading…</span>
+      <div className="mb-5 flex flex-col items-center gap-2">
+        <Skeleton className="h-24 w-24 rounded-full" />
+        <Skeleton className="mt-1 h-7 w-32" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      {cards.map((rows, i) => (
+        <div key={i} className="mb-3 rounded-md bg-surface p-3.5 shadow-receipt">
+          <Skeleton className="mb-3 h-4 w-28" />
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: rows }, (_, r) => (
+              <div key={r} className="flex items-center gap-3">
+                <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Skeleton className="h-3.5 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

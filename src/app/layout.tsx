@@ -9,7 +9,7 @@ const sora = Sora({ subsets: ["latin"], weight: ["600", "700"], variable: "--fon
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
-  title: "TipidTayo",
+  title: "Kuryentipid",
   description: "See what each appliance costs you and compete fairly with your barangay on % saved.",
 };
 

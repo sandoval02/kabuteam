@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { parseForm, voucherCode } from "@/lib/validation";
+import { parseForm, payoutResponse, voucherCode, type FormState } from "@/lib/validation";
 import { requireViewer } from "@/lib/auth";
 import { createUserClient } from "@/lib/supabase/server";
 
@@ -37,4 +37,26 @@ export async function redeem(_: RedeemState, form: FormData): Promise<RedeemStat
     return { tone: "error", message: `Already used on ${when}.`, fieldErrors: { code: "This code was already redeemed" } };
   }
   return { tone: "error", message: MESSAGES[r.status] ?? "Could not redeem this voucher." };
+}
+
+const RESPONSE_ERRORS: Record<string, string> = {
+  "not found or already answered": "This payment was already answered, or it isn't for your store.",
+  "note required": "Say what's wrong so the barangay can check.",
+};
+
+/** Runs as the store owner: the database function checks ownership and that the payout is still pending. */
+export async function respondPayout(_: FormState, form: FormData): Promise<FormState> {
+  await requireViewer("store");
+  const parsed = parseForm(payoutResponse, form);
+  if ("state" in parsed) return parsed.state;
+  const r = parsed.data;
+  const { error } = await (await createUserClient()).rpc("respond_payout", { p_payout_id: r.payout_id, p_received: r.received === "yes", p_note: r.note });
+  if (error) {
+    const known = RESPONSE_ERRORS[error.message];
+    if (!known) console.error("[respondPayout]", error.message);
+    return { error: known ?? "Could not save your answer. Try again." };
+  }
+  revalidatePath("/store");
+  revalidatePath("/admin");
+  return { ok: r.received === "yes" ? "Payment confirmed. Salamat!" : "Marked as not received. The barangay will see your note." };
 }

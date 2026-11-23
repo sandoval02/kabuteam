@@ -5,9 +5,18 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireViewer } from "@/lib/auth";
+import { peso } from "@/components/ui";
 import { getLeaderboard, scoreBill } from "@/lib/data";
-import { createAdminClient } from "@/lib/supabase/server";
-import { barangayName, parseForm, store as storeSchema, vouchers as vouchersSchema, type FormState as ActionState } from "@/lib/validation";
+import { createAdminClient, createUserClient } from "@/lib/supabase/server";
+import {
+  barangayName,
+  budget as budgetSchema,
+  parseForm,
+  payout as payoutSchema,
+  store as storeSchema,
+  vouchers as vouchersSchema,
+  type FormState as ActionState,
+} from "@/lib/validation";
 
 const done = (ok: string): ActionState => {
   revalidatePath("/", "layout");
@@ -114,6 +123,39 @@ export async function reviewStore(_: ActionState, form: FormData): Promise<Actio
   redirect(`/admin?store=${parsed.data.decision}`);
 }
 
+export async function saveBudget(_: ActionState, form: FormData): Promise<ActionState> {
+  const viewer = await requireViewer("admin");
+  const parsed = parseForm(budgetSchema, form);
+  if ("state" in parsed) return parsed.state;
+  const value = parsed.data.voucher_budget;
+  const { error } = await createAdminClient().from("barangays").update({ voucher_budget: value }).eq("id", viewer.barangayId);
+  if (error) return { error: "Could not save the budget. Try again." };
+  return done(value === null ? "Budget cleared: no monthly limit." : `Monthly voucher budget set to ${peso(value)}.`);
+}
+
+const PAYOUT_ERRORS: Record<string, string> = {
+  "nothing to pay": "Nothing to pay: this store has no unpaid redeemed vouchers.",
+  "not allowed": "Only this barangay's admin can record payments for this store.",
+  "bad method": "Pick how it was paid.",
+  "bad reference": "Enter a reference of 3 to 60 characters.",
+};
+
+/** Runs as the signed-in admin: the database function checks the barangay and computes the amount itself. */
+export async function recordPayout(_: ActionState, form: FormData): Promise<ActionState> {
+  await requireViewer("admin");
+  const parsed = parseForm(payoutSchema, form);
+  if ("state" in parsed) return parsed.state;
+  const p = parsed.data;
+  const { data, error } = await (await createUserClient()).rpc("record_payout", { p_store_id: p.store_id, p_method: p.method, p_reference: p.reference });
+  if (error) {
+    const known = PAYOUT_ERRORS[error.message];
+    if (!known) console.error("[recordPayout]", error.message);
+    return { error: known ?? "Could not record the payment. Try again." };
+  }
+  const row = (data as { amount: number; voucher_count: number }[])[0];
+  return done(`Recorded ${peso(Number(row.amount))} for ${row.voucher_count} voucher${row.voucher_count === 1 ? "" : "s"}. The store will be asked to confirm.`);
+}
+
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid misreads
 const newCode = () => Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
 
@@ -147,6 +189,21 @@ export async function issueVouchers(_: ActionState, form: FormData): Promise<Act
   const already = new Set((existing ?? []).map((e) => e.household_id));
   const winners = rows.filter((r) => r.score > 0 && !already.has(r.householdId)).slice(0, v.count);
   if (winners.length === 0) return { error: "Every top saver this month already has a voucher." };
+
+  // The monthly budget is re-checked here from the database; nothing the browser sends is trusted.
+  // ponytail: two admins issuing at the same moment could both pass this check; a DB function that
+  // locks the barangay row and inserts in one transaction is the fix if that ever matters.
+  const [{ data: brgy, error: brgyError }, { data: issued, error: issuedError }] = await Promise.all([
+    admin.from("barangays").select("voucher_budget").eq("id", viewer.barangayId).single(),
+    admin.from("vouchers").select("amount, stores!inner(barangay_id)").eq("score_month", month).eq("stores.barangay_id", viewer.barangayId),
+  ]);
+  if (brgyError || issuedError) return { error: "Could not check this month's voucher budget. Try again." };
+  if (brgy.voucher_budget !== null) {
+    const cap = Number(brgy.voucher_budget);
+    const used = (issued ?? []).reduce((sum, i) => sum + Number(i.amount), 0);
+    if (used + winners.length * v.amount > cap)
+      return { error: `This would go over the ${peso(cap)} monthly budget. ${peso(Math.max(0, cap - used))} is left. Lower the amount or the number of vouchers.` };
+  }
 
   const expires = new Date(Date.now() + v.days * 86_400_000).toISOString();
   const { error } = await admin.from("vouchers").insert(

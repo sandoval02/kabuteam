@@ -142,7 +142,32 @@ export const aiProvider = z
       ctx.addIssue({ code: "custom", path: ["base_url"], message: "Use the provider's https:// API address, e.g. https://api.example.com/v1" });
   });
 
-export const schemas = { credentials, signIn, signUp, bill, appliance, voucherCode, barangayName, store, vouchers, displayName, aiProvider };
+export const PAYOUT_METHODS = { cash: "Cash", gcash: "GCash", bank: "Bank" } as const;
+
+export const payout = z.object({
+  store_id: z.uuid("Pick a store"),
+  method: z.enum(["cash", "gcash", "bank"], { error: "Pick how it was paid" }),
+  reference: z.string().trim().min(3, "Enter the GCash ref, bank ref or OR number").max(60, "Keep it under 60 characters"),
+});
+
+export const payoutResponse = z
+  .object({
+    payout_id: z.uuid("Invalid payment"),
+    received: z.enum(["yes", "no"]),
+    note: z.string().trim().max(300, "Keep it under 300 characters").default(""),
+  })
+  .superRefine((v, ctx) => {
+    if (v.received === "no" && v.note.length < 3) ctx.addIssue({ code: "custom", path: ["note"], message: "Say what's wrong, e.g. the money hasn't arrived" });
+  });
+
+export const budget = z.object({
+  voucher_budget: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+    z.number({ error: "Use whole pesos" }).int("Use whole pesos, no centavos").min(0, "Can't be negative").max(1_000_000, "At most ₱1,000,000").nullable(),
+  ),
+});
+
+export const schemas = { credentials, signIn, signUp, bill, appliance, voucherCode, barangayName, store, vouchers, displayName, aiProvider, payout, payoutResponse, budget };
 export type SchemaKey = keyof typeof schemas;
 
 export type FieldErrors = Record<string, string | undefined>;

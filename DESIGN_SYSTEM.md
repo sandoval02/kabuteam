@@ -32,7 +32,7 @@ Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding.
 | `--color-warning` | `#fbbf24` | Unaccounted line, flags | 10.6:1 |
 | `--color-error` | `#f87171` | Errors | 6.4:1 |
 
-QR codes stay dark-on-white so any phone camera can scan them. The Google sign-in button is rendered by Google itself (Google Identity Services: pill shape, large, outline in light / filled black in dark), so its colors follow Google's branding rules; it is the only non-token color in the app.
+QR codes stay dark-on-white so any phone camera can scan them. "Continue with Google" uses the app's secondary button (full width, pill) with Google's official four-color G mark (required by Google's branding rules); the G is the only non-token color in the app.
 
 ### Typography
 
@@ -103,7 +103,7 @@ Defined once in `src/components/ui/`. Every interactive component has: default, 
 | **VoucherCard** | Big QR code, 6-character fallback code in mono, store name, amount, expiry. States: active, redeemed (greyed out with "Used on <date>"), expired. |
 | **Modal / bottom sheet** | Bottom sheet on mobile, centered modal ≥ md. Focus trapped, Esc and backdrop close, focus returns to trigger. |
 | **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
-| **Login / register** | `/login` and `/login?mode=up` (`&role=store` / `&role=admin` preselects a role). Wordmark lockup in the header, then two columns at `lg` (one column below, form first): title + form card + privacy line; a lime panel listing the billing month (date, who, what) in ink. Sign-up form order: "I'm joining as" role dropdown (`Household`, `Sari-sari store`, `Barangay admin`): a 40px field shows the chosen role's icon and title with a chevron; opening it shows the three original role rows below (`House`/`Store`/`Landmark` icon, title, one-line description; selected row lime), then the role's extra field (store name or admin access code), the consent checkbox (`CheckField`), Google's button, "or with email", name/email/password, Create account. |
+| **Login / register** | `/login` and `/login?mode=up` (`&role=store` / `&role=admin` preselects a role). Wordmark lockup in the header, then two columns at `lg` (one column below, form first): title + form card + privacy line; a lime panel listing the billing month (date, who, what) in ink. Sign-up form order: "I'm joining as" role dropdown (`Household`, `Sari-sari store`, `Barangay admin`): a 40px field shows the chosen role's icon and title with a chevron; opening it shows the three original role rows below (`House`/`Store`/`Landmark` icon, title, one-line description; selected row lime), then the role's extra field (store name or admin access code), the consent checkbox (`CheckField`), "Sign up with Google" (secondary button), "or with email", name/email/password, Create account. |
 | **Toast** | Bottom-center, 96px above the viewport edge so it clears the floating nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
 | **Skeleton** | Grey `--color-border` blocks matching the final layout, pulsing (still under reduced motion). Each nav page (Home, Scan, Ranking, Vouchers) has a `loading.tsx`, so a nav tap switches instantly to the skeleton; the tapped nav icon shows a spinner until the page arrives. |
 | **PageHero / CardSection** | The Profile layout, used on Profile only (Ranking and Vouchers open with a lime card of real numbers instead): a 96px lime circle (icon or avatar), centered display title and muted subtitle, then content in cards whose `font-semibold` heading (with optional 14px icon) sits inside the card. Home follows it with a centered hero and card-wrapped content. |
@@ -160,9 +160,12 @@ Non-negotiable. Every visual element has a purpose; every interaction does somet
 - **Primary:** scan or type a voucher code → Redeem.
 - **Error:** already used → "Used on <date> at <store>"; expired; not for this store. Each is a distinct, clear message.
 - **Success:** large confirmation with amount to discount.
+- **Payments:** pending payouts appear as cards above "Redeemed here" ("₱X from the barangay · date · method ref"), with "I received it" (primary, confirm dialog) and "Not received" (secondary, opens a required note, confirm dialog). "Redeemed here" opens with "Waiting for payment" and "Paid"; each voucher row says Unpaid, Pending, Paid or Disputed. Empty: no cards and no history section.
 
 ### Admin (barangay)
 - **Primary:** approve/reject flagged bills. **Secondary:** set monthly voucher pool; approve store sign-ups; add AI fallback providers.
+- **Partner stores:** each row shows Unpaid (bold) and Paid (muted), any pending payout as a muted line, a disputed one as a warning Notice with the store's note, a "Record payment" form only when Unpaid > 0, and a `<details>` payment history with status in `success` / `warning` / `muted`.
+- **Voucher budget:** "Budget this month: ₱X of ₱Y used, ₱Z left" above the issue form; a live "This issue: up to N × ₱A = ₱T" line under the fields; when nothing is left, a warning Notice and a disabled Issue button.
 - **AI providers:** the chain is a numbered list (server settings, added providers with last test result, manual entry). The add form unlocks "Add to the chain" only after "Run test" passes; the log is a mono list on `surface-2`, verdict line in `success`/`error`.
 - **Empty:** "No bills to review."
 - **Success:** toast + the row leaves the queue.

@@ -96,8 +96,10 @@ One barangay, its own partner sari-sari stores, its own budget. Vouchers keep th
 | **Ranking** | Monthly barangay ranking by fair score, showing both score and actual % saved; your row stays pinned while you scroll. |
 | **Badges** | First Scan, 10% Club, Efficient Already, Top 3. |
 | **Vouchers** | Single-use QR + 6-character code per top saver; store redeems by camera (where the browser supports it) or by typing. |
-| **Store page** | Redeem, see every redeemed voucher and the total owed by the barangay; "waiting for approval" state for new stores. |
-| **Admin page** | Flagged-bill review with photo and source, store sign-up approvals, voucher issuing with "next in line" preview, partner stores with redeemed totals, barangay name, and the **AI provider chain** (below). |
+| **Store page** | Redeem, see each voucher as Unpaid, Pending or Paid with "Waiting for payment" and "Paid" totals, confirm or dispute the barangay's payments, payment history; "waiting for approval" state for new stores. |
+| **Store payouts** | The barangay records each payment to a store (cash, GCash or bank, with a reference); the store confirms it received it, or disputes it with a note. The amount is computed by the database from the unpaid redeemed vouchers, each voucher can be paid only once, and payouts are never edited or deleted. |
+| **Monthly voucher budget** | The barangay sets how much it can spend on vouchers per month; the admin sees what's used and left, and the app refuses to issue past it. |
+| **Admin page** | Flagged-bill review with photo and source, store sign-up approvals, voucher issuing with "next in line" preview and the budget, partner stores with Unpaid / Paid and payment recording, barangay name and budget, and the **AI provider chain** (below). |
 | **Profile** | Display name, avatar, light / dark / system theme. |
 | **Every screen** | Loading skeletons, empty states, error boundaries with retry, toasts, confirm dialogs, mobile-first at 375px, keyboard and screen-reader support. |
 
@@ -107,7 +109,7 @@ One barangay, its own partner sari-sari stores, its own budget. Vouchers keep th
 |---|---|---|
 | App framework | **Next.js 16.4** (App Router, Server Components, Server Actions), **React 19.3**, **TypeScript** (strict) | Screens and server code in one project and one deploy; secrets never leave the server |
 | Database | **Supabase Postgres** | Real SQL constraints (unique account number, single-use voucher via one atomic `UPDATE`), Row Level Security as defense in depth |
-| Auth | **Supabase Auth** (email + password, accounts created server-side as confirmed) + **Google Identity Services** (ID token verified on the server) | No email round-trip during a live demo; Google needs only a public client ID |
+| Auth | **Supabase Auth** (email + password, accounts created server-side as confirmed) + **Google sign-in** (Google Identity Services popup; the token is verified on the server) | No email round-trip during a live demo; Google needs only a public client ID |
 | File storage | **Supabase Storage** | Private bucket for bill photos (owner + barangay admin only); public bucket for avatars |
 | AI vision | **Google Gemini** (`@google/genai`, free tier) → optional **Claude** (`@anthropic-ai/sdk`) → providers the admin adds (OpenAI, Grok, Groq, OpenRouter or any OpenAI-compatible API) → manual entry | A quota or outage never blocks scanning |
 | Validation | **Zod 4** | One schema validates AI output, browser forms and server input |
@@ -130,7 +132,7 @@ flowchart LR
   N -->|"bill / sticker image"| AI["AI providers<br/>Gemini → Claude → admin-added"]
   AI -->|"JSON, validated with Zod"| N
   P -->|"Google button"| G["Google Identity Services"]
-  G -->|"signed ID token"| N
+  G -->|"access token, checked with Google"| N
 ```
 
 - **Browser:** takes photos, renders screens, validates forms instantly with the same Zod rules the server uses.
@@ -175,10 +177,11 @@ Each photo goes through a **fallback chain**; the first answer that passes Zod v
 - **Secrets stay on the server.** The browser only ever sees the Supabase URL, the publishable key and the Google client ID.
 - **Roles are checked on the server** in every page layout and action; RLS lets a signed-in user read only their own rows.
 - **No self-made admins or fake stores.** Admin sign-up needs `ADMIN_SIGNUP_CODE` (constant-time compare); a self-registered store can't receive vouchers until the admin approves it.
-- **Google sign-in** is verified server-side (issuer, audience = our client ID, verified email) before any session starts; a new Google account must go through sign-up to choose a role and give consent.
+- **Google sign-in** is verified server-side with Google (token issued to our client ID, verified email) before any session starts; a new Google account must go through sign-up to choose a role and give consent.
 - **AI provider keys** are encrypted with AES-256-GCM; error messages are scrubbed of the key.
 - **Bill photos** live in a private bucket, shown to the barangay admin through short-lived signed URLs.
 - **Vouchers** are redeemed by one atomic database update, so a code can't be used twice, even with double taps.
+- **Payouts** are written only by two database functions that check the caller (admin of that barangay; owner of that store), lock the vouchers being paid, and compute the amount themselves; RLS lets only that store's owner and that barangay's admins read them.
 - **Privacy (RA 10173):** consent is required and timestamped at sign-up; neighbors see only a household number, % saved and badges, never a name, address or bill.
 - Security headers (`nosniff`, frame denial, referrer policy, camera-only permissions, HSTS) in `next.config.ts`.
 

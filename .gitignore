@@ -51,3 +51,6 @@ next-env.d.ts
 # local AI agent config (not shared)
 /.opencode/
 /AGENTS.md
+
+# personal planning notes (not shared)
+/TipidTayo Plan and To-Dos.md

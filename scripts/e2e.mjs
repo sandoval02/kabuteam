@@ -83,6 +83,13 @@ try {
   step("Resident A signs up through the UI and enters a bill");
   const a = await newPage(browser);
   await a.goto(`${BASE}/login?mode=up`);
+  await a.getByRole("button", { name: /I'm joining as/ }).click();
+  await a.getByText("Sari-sari store", { exact: true }).click();
+  await a.getByLabel("Store name").waitFor();
+  await a.getByRole("button", { name: /I'm joining as/ }).click();
+  await a.getByText("Household", { exact: true }).click();
+  assert.equal(await a.getByLabel("Store name").count(), 0);
+  ok("role dropdown selects a role and swaps the store field");
   await a.getByLabel("Email").fill(email("a"));
   await a.getByLabel("Password").fill(PASSWORD);
   await a.getByRole("button", { name: "Create account" }).last().click();

@@ -1,6 +1,6 @@
 # Kuryentipid
 
-> Your barangay's fair energy-saving challenge. Photograph your Meralco bill and your appliance stickers to see what each appliance really costs you, then compete with your neighbors on **% saved against your own last year**, not raw kWh, for badges and sari-sari store vouchers.
+> Your barangay's fair energy-saving challenge. Photograph your Meralco bill and your appliance stickers to see what each appliance really costs you, point your phone at a room to catch what was left on, then compete with your neighbors on **% saved against your own last year**, not raw kWh, for badges and sari-sari store vouchers.
 
 **SDG 7: Affordable and Clean Energy** (targets 7.1 and 7.3), with SDG 11 (sustainable communities). No smart meter, no hardware, no app store: a phone browser and the paper bill.
 
@@ -53,12 +53,16 @@ flowchart LR
   G --> H["Admin issues vouchers<br/>to top savers"]
   H --> I["Resident shows QR<br/>at a partner store"]
   I --> J["Store redeems once;<br/>barangay pays the store back"]
+  R["Any day: resident points<br/>the camera at a room"] --> S["AI lists what is on;<br/>server checks nobody is there"]
+  S --> T["Left on, in ₱ per hour<br/>at the bill's own rate"]
+  T -.->|"cut it before the next bill"| A
 ```
 
 | Day | Who | What happens in the app |
 |---|---|---|
 | **Bill arrives** | Resident | Takes a photo of the bill (or types it in). AI reads account number, billing period, kWh, amount due and the 12-month usage chart; every field stays editable. |
 | **Same day** | Resident | Photographs appliance rating stickers (or picks from a list with typical watts) and sets hours per day. Gets an **itemized receipt**: each appliance in kWh and pesos, adding up to the real bill, plus one concrete fix for the top costs. |
+| **Any day** | Resident | **Room check:** points the phone at a room. The AI says what was left on with nobody there, and the app prices it per hour from the household's own bill rate and appliance watts. Feedback between bills, not just once a month. |
 | **Month end** | Barangay admin | Reviews the few bills the app flagged; the ranking is computed automatically. Issues vouchers to the top savers at an approved partner store. |
 | **Next days** | Store owner | Scans the resident's QR or types the 6-character code. Each code works **once**. The store page shows the total the barangay owes it. |
 | **After 3 rounds** | Barangay council | Compares total kWh and pesos saved against the same months last year. |
@@ -92,6 +96,7 @@ One barangay, its own partner sari-sari stores, its own budget. Vouchers keep th
 | **Sign-up by role** | Household, Sari-sari store (waits for the admin's approval before it can receive vouchers) or Barangay admin (needs the admin access code). Email + password or Google. Privacy consent (Data Privacy Act, RA 10173) is required. A failed sign-in says whether the email isn't registered, uses Google, or has the wrong password. |
 | **Scan the bill** | AI extraction of every bill field and the usage chart; manual entry always available; live "₱ per kWh" check. |
 | **Scan appliances** | Rating-sticker photo → type and watts; inverter detection; hours per day. |
+| **Room check** | Third tab on Scan (`/scan#room`): live rear camera with **Check now** and an optional auto-check every 1 to 60 minutes (the resident types the number), or a single photo. Says what is left on with nobody in the room, each device's watts and ₱ per hour (from the latest bill's rate; watts from the household's own appliance of that type, else a typical value), and keeps a list of this visit's checks. Energy only. Photos are never stored; the camera turns off when the tab or page is left. Shares the 20-per-hour AI cap. Reachable from Home (quick action and Get started), from the receipt's Unaccounted warning, and described on the homepage. |
 | **Itemized receipt** | Per-appliance kWh and ₱, reconciled to the bill, sorted by cost, Unaccounted line, top-3 swap tips with monthly saving and payback months. |
 | **Ranking** | Monthly barangay ranking by fair score, showing both score and actual % saved; your row stays pinned while you scroll. |
 | **Badges** | First Scan, 10% Club, Efficient Already, Top 3. |
@@ -111,7 +116,8 @@ One barangay, its own partner sari-sari stores, its own budget. Vouchers keep th
 | Database | **Supabase Postgres** | Real SQL constraints (unique account number, single-use voucher via one atomic `UPDATE`), Row Level Security as defense in depth |
 | Auth | **Supabase Auth** (email + password, accounts created server-side as confirmed) + **Google sign-in** (Google Identity Services popup; the token is verified on the server) | No email round-trip during a live demo; Google needs only a public client ID |
 | File storage | **Supabase Storage** | Private bucket for bill photos (owner + barangay admin only); public bucket for avatars |
-| AI vision | **Google Gemini** (`@google/genai`, free tier) → optional **Claude** (`@anthropic-ai/sdk`) → providers the admin adds (OpenAI, Grok, Groq, OpenRouter or any OpenAI-compatible API) → manual entry | A quota or outage never blocks scanning |
+| AI vision | **Google Gemini** (`@google/genai`, free tier) → optional **Claude** (`@anthropic-ai/sdk`) → providers the admin adds (OpenAI, Grok, Groq, OpenRouter or any OpenAI-compatible API) → manual entry. Reads bills, appliance stickers and Room check photos through one chain | A quota or outage never blocks scanning |
+| Live camera | The browser's own `getUserMedia` (rear camera) and `createImageBitmap` (grab one frame), resized on a canvas | Room check needs no camera library and no app install |
 | Validation | **Zod 4** | One schema validates AI output, browser forms and server input |
 | Styling | **Tailwind CSS 4.3** with design tokens in `src/app/globals.css` (light + dark) | Tokens enforce [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) |
 | UI | Own primitives (`components/ui.tsx`, `field.tsx`, `form.tsx`), **lucide-react** icons, **sonner** toasts | Small, accessible, no component-library weight |
@@ -129,13 +135,13 @@ No dependency is added without a written reason (see [ARCHITECTURE.md](ARCHITECT
 flowchart LR
   P["Phone browser<br/>(screens, camera, QR)"] -->|"pages, Server Actions, photo uploads"| N["Next.js server<br/>(Vercel)"]
   N -->|"auth, SQL, private photos"| S[("Supabase<br/>Auth · Postgres + RLS · Storage")]
-  N -->|"bill / sticker image"| AI["AI providers<br/>Gemini → Claude → admin-added"]
+  N -->|"bill, sticker or room photo"| AI["AI providers<br/>Gemini → Claude → admin-added"]
   AI -->|"JSON, validated with Zod"| N
   P -->|"Google button"| G["Google Identity Services"]
   G -->|"access token, checked with Google"| N
 ```
 
-- **Browser:** takes photos, renders screens, validates forms instantly with the same Zod rules the server uses.
+- **Browser:** takes photos and live camera frames, renders screens, validates forms instantly with the same Zod rules the server uses.
 - **Server:** holds every secret, calls the AI chain, validates all input, computes reconciliation and the fair score (pure, unit-tested functions in `src/lib/scoring`), checks roles on every page and action.
 - **Database:** constraints and RLS are the last line of defense. Roles: `resident`, `store`, `admin`.
 
@@ -144,11 +150,11 @@ src/
 ├── app/
 │   ├── page.tsx                 homepage (one billing month)
 │   ├── login/                   sign-in / sign-up with roles, Google button
-│   ├── (resident)/              home, scan, receipt, ranking, vouchers
+│   ├── (resident)/              home, scan (bill, appliances, room check), receipt, ranking, vouchers
 │   ├── store/                   voucher redemption
 │   ├── admin/                   review, stores, vouchers, AI providers
 │   ├── profile/
-│   └── api/extract/{bill,appliance}/   photo → AI chain
+│   └── api/extract/{bill,appliance,room}/   photo → AI chain
 ├── components/                  ui primitives, forms, landing
 └── lib/
     ├── scoring/                 reconcile, fair score, plausibility (+ tests)
@@ -163,14 +169,14 @@ Full details: schema, API conventions and every decision with its reason in [ARC
 
 ## 7. AI photo reading
 
-Each photo goes through a **fallback chain**; the first answer that passes Zod validation wins, and if every step fails the resident types the numbers in, so scanning never dead-ends.
+Each photo (bill, appliance sticker or room check) goes through a **fallback chain**; the first answer that passes Zod validation wins. If every step fails, the resident types the numbers in, so scanning never dead-ends; a failed room check says so and stops auto-check.
 
 1. Gemini models from `GEMINI_MODELS` (free tier, e.g. Flash-Lite first, Flash as the accuracy backstop)
 2. Claude, if `ANTHROPIC_API_KEY` is set
 3. **Providers the barangay admin added** on the admin page: OpenAI (ChatGPT / Codex accounts), Anthropic, Google Gemini, xAI Grok, Groq, OpenRouter, or any OpenAI-compatible `https://` API
 4. Manual entry (always)
 
-**Adding a provider is test-first.** The admin picks a provider, model and API key and presses **Run test**: the app sends a sample bill photo to that provider alone and shows a step-by-step log (request, timing, what it read, PASS/FAIL). **Add to the chain** unlocks only after a pass, and the server checks a signed proof of that exact test before saving. Keys are stored encrypted and only their last 4 characters are ever shown. Photo reading is capped at 20 attempts per user per hour to protect free quotas.
+**Adding a provider is test-first.** The admin picks a provider, model and API key and presses **Run test**: the app sends a sample bill photo to that provider alone and shows a step-by-step log (request, timing, what it read, PASS/FAIL). **Add to the chain** unlocks only after a pass, and the server checks a signed proof of that exact test before saving. Keys are stored encrypted and only their last 4 characters are ever shown. Photo reading, room checks included, is capped at 20 attempts per user per hour on the server to protect free quotas; an auto-check faster than every 3 minutes reaches that cap within the hour, and the screen then turns auto-check off.
 
 ## 8. Security and privacy
 
@@ -180,6 +186,7 @@ Each photo goes through a **fallback chain**; the first answer that passes Zod v
 - **Google sign-in** is verified server-side with Google (token issued to our client ID, verified email) before any session starts; a new Google account must go through sign-up to choose a role and give consent.
 - **AI provider keys** are encrypted with AES-256-GCM; error messages are scrubbed of the key.
 - **Bill photos** live in a private bucket, shown to the barangay admin through short-lived signed URLs.
+- **Room check photos are never stored.** The frame goes to the AI and is discarded; only the text result is shown, and only to that resident. The prompt asks only whether someone is in the room, never who. Nothing from Room check reaches the ranking or the admin.
 - **Vouchers** are redeemed by one atomic database update, so a code can't be used twice, even with double taps.
 - **Payouts** are written only by two database functions that check the caller (admin of that barangay; owner of that store), lock the vouchers being paid, and compute the amount themselves; RLS lets only that store's owner and that barangay's admins read them.
 - **Privacy (RA 10173):** consent is required and timestamped at sign-up; neighbors see only a household number, % saved and badges, never a name, address or bill.
@@ -245,7 +252,7 @@ npm run lint
 npm run build
 ```
 
-The end-to-end run covers the homepage, sign-up with consent, bill entry, appliances, receipt, real Gemini bill and sticker scans, the hourly scan cap, flagging, ranking order, a forged Google token being refused, store sign-up and approval, admin access code, an AI provider test, admin review, vouchers, single-use redemption, profile and theme, sign out and role checks. It fails on any browser console error and deletes its accounts afterwards. Manual checks are in [TESTING.md](TESTING.md).
+The end-to-end run covers the homepage, sign-up with consent, bill entry, appliances, receipt, real Gemini bill and sticker scans, Room check with a fake camera (verdict, camera off when the tab changes, store accounts refused), the hourly scan cap (room checks included), flagging, ranking order, a forged Google token being refused, store sign-up and approval, admin access code, an AI provider test, admin review, vouchers, single-use redemption, profile and theme, sign out and role checks. It fails on any browser console error and deletes its accounts afterwards. Manual checks are in [TESTING.md](TESTING.md).
 
 ## 11. Screenshots
 
@@ -270,16 +277,20 @@ Each criterion is worth 20%.
 | Criterion | Our case | Proof in the demo |
 |---|---|---|
 | **Technical quality** | Vision extraction from two document types through a validated multi-provider fallback chain; reconciliation to the bill total; fair-score rules with anti-cheat checks; RLS, server-side role checks, encrypted keys, atomic single-use vouchers | Redeem the same voucher twice: the second try says "already used" |
-| **Functionality** | The full loop works for all three roles with loading, error and empty states; no mocked screens | Scan → receipt → ranking → voucher → store redemption, live, in under 2 minutes |
-| **Innovation** | A receipt calibrated to the real bill, with an honest Unaccounted line | Open the receipt: the lines add up to the bill |
+| **Functionality** | The full loop works for all three roles with loading, error and empty states; no mocked screens. Room check gives feedback between bills | Scan → receipt → ranking → voucher → store redemption, live, in under 2 minutes; if asked, Room check on a lamp that is on |
+| **Innovation** | A receipt calibrated to the real bill, with an honest Unaccounted line; Room check prices what was left on in ₱ per hour from the household's own bill | Open the receipt: the lines add up to the bill |
 | **Originality** | Ranking by % saved against your own same month last year, rewarded at the barangay's own sari-sari stores | The small house at 22% ranks above the big house at 6% |
 | **Presentation** | A real bill, a real store owner's view, and a fallback for every step that can fail | If the AI is slow, type the numbers in: "the AI suggests, the resident confirms" |
 
 ## 13. Scope and roadmap
 
-**Out of scope for the MVP:** meter camera / real-time monitoring, payments or money transfer (the barangay pays stores back outside the app), multiple barangays, bills other than Meralco, SMS/push notifications, a native app.
+**Out of scope for the MVP:** meter camera (live kWh read from the meter), water use and leak detection, payments or money transfer (the barangay pays stores back outside the app), multiple barangays, bills other than Meralco, SMS/push notifications, a native app.
 
 **Next:** a meter camera (an old phone counting the meter's pulse LED for daily feedback and a "Meter-Verified" badge), store pay-back tracking, and winner notifications.
+
+**Later:** clean cooking ("Per Plate": cost and smoke per meal on charcoal, LPG and electric; SDG 7.1.2), cross-barangay rankings, phone sign-up by SMS, savings trends over several months, other utilities (non-Meralco bills, water bills).
+
+Room check started as TipidWatch, a standalone phone-CCTV prototype ([cathdevz/tipidwatch](https://github.com/cathdevz/tipidwatch)); only its energy check was brought in, on Kuryentipid's own sign-in, AI chain, scan cap and design system.
 
 ## 14. Project docs and process
 
@@ -289,9 +300,8 @@ Each criterion is worth 20%.
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Design tokens, components, anti-slop rules, UX states |
 | [PRODUCT.md](PRODUCT.md) | Users, purpose, positioning, product principles |
 | [TESTING.md](TESTING.md) | QA checklist and edge cases |
-| [DEMO.md](DEMO.md) | 2-minute demo script and roadmap slide |
-| [TASKS.md](TASKS.md) | Hackathon task breakdown |
-| [IDEAS.md](IDEAS.md) | Full project idea brief |
+| [DEMO.md](DEMO.md) | 2-minute demo script, panel questions about Room check, roadmap slide |
+| [TASKS.md](TASKS.md) | Hackathon task breakdown and what is left before the demo |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Git and collaboration rules (conventional commit prefixes: `feat`, `fix`, `docs`, `perf`, `test`, `chore`) |
 | [.env.example](.env.example) | Every environment variable with where to get it |
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useState } from "react";
 import { PhotoCapture, postPhoto } from "@/components/photo-capture";
 import { Field, Notice, SelectField } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { APPLIANCE_TYPES, applianceTypeKeys, type ApplianceExtraction, type ApplianceType } from "@/lib/extraction/schemas";
-import { addAppliance, type FormState } from "../actions";
+import { ValidatedForm } from "@/components/form";
+import { addAppliance } from "../actions";
 
 type Values = { type: ApplianceType; watts: string; hours: string; inverter: "yes" | "no" | "unknown" };
 const defaults = (type: ApplianceType): Values => ({
@@ -17,18 +18,11 @@ const defaults = (type: ApplianceType): Values => ({
 
 export function ApplianceForm() {
   const [values, setValues] = useState<Values>(defaults("aircon"));
+  // A fresh form mounts after each save or sticker read. React's automatic form reset would
+  // otherwise snap the controlled selects back to their first value (sending the wrong type).
+  const [version, setVersion] = useState(0);
   const [reading, setReading] = useState(false);
   const [note, setNote] = useState<{ tone: "info" | "warning"; text: string } | null>(null);
-  const form = useRef<HTMLFormElement>(null);
-  const [state, action] = useActionState<FormState, FormData>(async (prev, data) => {
-    const result = await addAppliance(prev, data);
-    if (result.ok) {
-      form.current?.reset();
-      setValues(defaults("aircon"));
-      setNote(null);
-    }
-    return result;
-  }, {});
 
   async function onPhoto(file: File) {
     setReading(true);
@@ -38,6 +32,7 @@ export function ApplianceForm() {
     const ex = data?.extraction;
     if (error || !ex) return setNote({ tone: "warning", text: error ?? "Could not read the sticker. Pick the appliance below." });
     if (!ex.readable) return setNote({ tone: "warning", text: "No rating label found. Retake closer to the sticker, or pick below." });
+    setVersion((v) => v + 1);
     setValues({
       type: ex.appliance_type,
       watts: ex.watts ? String(Math.round(ex.watts)) : String(APPLIANCE_TYPES[ex.appliance_type].watts),
@@ -51,12 +46,21 @@ export function ApplianceForm() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-md border border-border bg-surface p-4">
+    <div className="flex flex-col gap-4 rounded-md bg-surface shadow-receipt p-4">
       <PhotoCapture label={reading ? "Reading sticker…" : "Scan appliance sticker"} onPhoto={onPhoto} disabled={reading} variant="secondary" />
       {note && <Notice tone={note.tone}>{note.text}</Notice>}
-      <form ref={form} action={action} className="flex flex-col gap-4">
-        {state.error && <Notice tone="error">{state.error}</Notice>}
-        {state.ok && <Notice tone="success">{state.ok}</Notice>}
+      <ValidatedForm
+        key={version}
+        action={addAppliance}
+        schema="appliance"
+        onResult={(r) => {
+          if (r.ok) {
+            setVersion((v) => v + 1);
+            setValues(defaults("aircon"));
+            setNote(null);
+          }
+        }}
+      >
         <SelectField
           label="Appliance"
           name="type"
@@ -108,7 +112,7 @@ export function ApplianceForm() {
         <SubmitButton variant="primary" pendingText="Adding…">
           Add appliance
         </SubmitButton>
-      </form>
+      </ValidatedForm>
     </div>
   );
 }

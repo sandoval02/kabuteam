@@ -115,6 +115,14 @@ No dependency gets added beyond this list without a written reason.
 | Deployment | **Vercel** + Supabase cloud (free tiers) | Zero-config Next.js hosting |
 | External APIs | Google Gemini API; Anthropic API (optional fallback) | |
 
+## Screenshots
+
+| Home (light) | Home (dark) | Avatar menu | Profile |
+|---|---|---|---|
+| ![Home dashboard, light](docs/screenshots/home-light.png) | ![Home dashboard, dark](docs/screenshots/home-dark.png) | ![Avatar menu with theme switch](docs/screenshots/avatar-menu.png) | ![Profile page](docs/screenshots/profile-dark.png) |
+
+![Landing page](docs/screenshots/landing.png)
+
 ## 4. Getting started
 
 ```bash
@@ -122,12 +130,15 @@ git clone <repo> && cd tipidtayo
 cp .env.example .env.local      # fill in values (see comments in the file)
 npm install
 npm run db:migrate              # apply supabase/migrations (needs SUPABASE_DB_URL)
+npm run seed:demo               # optional: demo barangay (set DEMO_PASSWORD first)
 npm run dev                     # http://localhost:3000
 npm test                        # scoring unit tests
 npm run e2e                     # full demo loop in Microsoft Edge (dev server must be running)
 ```
 
 The first admin: put their email in `ADMIN_EMAILS` before they create their account. Store owners create an account, then the admin links them on the admin page.
+
+**Demo accounts** (after `npm run seed:demo`): `resident@`, `neighbor@`, `admin@`, `store@tipidtayo.test` plus 5 more households, all with `DEMO_PASSWORD`. See [DEMO.md](DEMO.md) for the 2-minute demo script.
 
 ## 5. Execution workflow
 

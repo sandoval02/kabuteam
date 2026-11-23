@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import { parseForm, voucherCode } from "@/lib/validation";
 import { requireViewer } from "@/lib/auth";
 import { createUserClient } from "@/lib/supabase/server";
 
-export type RedeemState = { tone?: "success" | "error"; message?: string; amount?: number };
+export type RedeemState = { tone?: "success" | "error"; message?: string; amount?: number; ok?: string; error?: string; fieldErrors?: Record<string, string | undefined> };
 
 const MESSAGES: Record<string, string> = {
   not_found: "No voucher has this code. Check the letters and try again.",
@@ -16,8 +16,9 @@ const MESSAGES: Record<string, string> = {
 
 export async function redeem(_: RedeemState, form: FormData): Promise<RedeemState> {
   await requireViewer("store");
-  const code = z.string().trim().toUpperCase().regex(/^[A-Z0-9]{6}$/).safeParse(form.get("code"));
-  if (!code.success) return { tone: "error", message: "A voucher code is 6 letters and numbers." };
+  const parsed = parseForm(voucherCode, form);
+  if ("state" in parsed) return parsed.state;
+  const code = { data: parsed.data.code };
 
   // Runs as the store owner: the database function checks ownership and redeems atomically.
   const supabase = await createUserClient();
@@ -29,11 +30,11 @@ export async function redeem(_: RedeemState, form: FormData): Promise<RedeemStat
   const r = data[0] as { status: string; amount: number | null; redeemed_at: string | null };
   if (r.status === "ok") {
     revalidatePath("/store");
-    return { tone: "success", message: "Voucher accepted. Give the discount:", amount: Number(r.amount) };
+    return { tone: "success", message: "Voucher accepted. Give the discount:", amount: Number(r.amount), ok: `Voucher ${code.data} redeemed` };
   }
   if (r.status === "used") {
     const when = new Date(r.redeemed_at!).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
-    return { tone: "error", message: `Already used on ${when}.` };
+    return { tone: "error", message: `Already used on ${when}.`, fieldErrors: { code: "This code was already redeemed" } };
   }
   return { tone: "error", message: MESSAGES[r.status] ?? "Could not redeem this voucher." };
 }

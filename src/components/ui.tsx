@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { TriangleAlert, CircleCheck, Info } from "lucide-react";
+import { TriangleAlert, CircleCheck, Info, ArrowRight, type LucideIcon } from "lucide-react";
 
 const nf1 = new Intl.NumberFormat("en-PH", { maximumFractionDigits: 1 });
 export const peso = (n: number) =>
@@ -8,11 +8,12 @@ export const kwh = (n: number) => `${nf1.format(n)} kWh`;
 export const pct = (n: number) => `${nf1.format(n)}%`;
 
 const buttonBase =
-  "inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 font-semibold transition-colors duration-100 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-10 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 text-[0.9375rem] font-bold transition-[background-color,border-color,transform] duration-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60";
 export const buttonStyles = {
   primary: `${buttonBase} bg-primary text-on-primary hover:bg-primary-hover`,
-  secondary: `${buttonBase} border border-border-strong bg-surface text-text hover:bg-bg`,
-  ghost: `${buttonBase} text-primary hover:bg-success-bg`,
+  secondary: `${buttonBase} border-[1.5px] border-border bg-surface text-text hover:border-text`,
+  lime: `${buttonBase} bg-lime text-on-lime hover:bg-lime-hover`,
+  ghost: `${buttonBase} text-text hover:bg-surface-2`,
   destructive: `${buttonBase} bg-error text-on-primary hover:opacity-90`,
 };
 
@@ -24,45 +25,7 @@ export function Button({
   return <button className={`${buttonStyles[variant]} ${className}`} {...props} />;
 }
 
-type FieldProps = ComponentProps<"input"> & { label: string; hint?: string; error?: string };
-export function Field({ label, hint, error, id, className = "", ...props }: FieldProps) {
-  const fieldId = id ?? props.name;
-  return (
-    <div className={`flex flex-col gap-1 ${className}`}>
-      <label htmlFor={fieldId} className="text-small font-semibold">
-        {label}
-      </label>
-      <input
-        id={fieldId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={hint || error ? `${fieldId}-hint` : undefined}
-        className="h-11 rounded-sm border border-border-strong bg-surface px-3 text-body aria-invalid:border-error"
-        {...props}
-      />
-      {(error || hint) && (
-        <p id={`${fieldId}-hint`} className={`flex items-center gap-1 text-small ${error ? "text-error" : "text-muted"}`}>
-          {error && <TriangleAlert size={16} aria-hidden />}
-          {error ?? hint}
-        </p>
-      )}
-    </div>
-  );
-}
-
-type SelectProps = ComponentProps<"select"> & { label: string; children: ReactNode };
-export function SelectField({ label, id, className = "", children, ...props }: SelectProps) {
-  const fieldId = id ?? props.name;
-  return (
-    <div className={`flex flex-col gap-1 ${className}`}>
-      <label htmlFor={fieldId} className="text-small font-semibold">
-        {label}
-      </label>
-      <select id={fieldId} className="h-11 rounded-sm border border-border-strong bg-surface px-3 text-body" {...props}>
-        {children}
-      </select>
-    </div>
-  );
-}
+export { Field, SelectField } from "./field";
 
 const noticeStyles = {
   success: { box: "bg-success-bg text-success", Icon: CircleCheck },
@@ -73,8 +36,8 @@ const noticeStyles = {
 export function Notice({ tone, children }: { tone: keyof typeof noticeStyles; children: ReactNode }) {
   const { box, Icon } = noticeStyles[tone];
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={`flex gap-2 rounded-sm p-3 text-small ${box}`}>
-      <Icon size={20} aria-hidden className="mt-0.5 shrink-0" />
+    <div role={tone === "error" ? "alert" : "status"} className={`flex gap-2 rounded-sm px-3 py-2.5 text-small ${box}`}>
+      <Icon size={18} aria-hidden className="mt-px shrink-0" />
       <div>{children}</div>
     </div>
   );
@@ -82,21 +45,54 @@ export function Notice({ tone, children }: { tone: keyof typeof noticeStyles; ch
 
 export function PageTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
-    <header className="mb-6">
+    <header className="mb-4">
       <h1 className="text-display font-semibold">{children}</h1>
       {sub && <p className="mt-1 text-muted">{sub}</p>}
     </header>
   );
 }
 
-export function Section({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+export function Section({ title, children, action, icon, id }: { title: string; children: ReactNode; action?: ReactNode; icon?: LucideIcon; id?: string }) {
   return (
-    <section className="mb-8">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-h2 font-semibold">{title}</h2>
+    <section id={id} className="mb-6 scroll-mt-16">
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-3 text-h2 font-semibold">
+          {icon && <IconTile icon={icon} />}
+          {title}
+        </h2>
         {action}
       </div>
       {children}
     </section>
+  );
+}
+
+/** Label + arrow in a circle, the main call-to-action shape. Put inside a primary button or link. */
+export function CtaLabel({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <span>{children}</span>
+      <ArrowRight size={18} strokeWidth={2.25} aria-hidden />
+    </>
+  );
+}
+
+/** A tinted rounded square holding one icon. */
+export function IconTile({ icon: Icon, tone = "green", size = "md" }: { icon: LucideIcon; tone?: "green" | "gold" | "warning"; size?: "md" | "lg" }) {
+  const tones = { green: "bg-surface-2 text-text", gold: "bg-lime text-on-lime", warning: "bg-warning-bg text-warning" };
+  const dims = size === "lg" ? "h-10 w-10 rounded-md" : "h-8 w-8 rounded-md";
+  return (
+    <span aria-hidden className={`flex shrink-0 items-center justify-center ${dims} ${tones[tone]}`}>
+      <Icon size={size === "lg" ? 17 : 14} strokeWidth={1.75} />
+    </span>
+  );
+}
+
+/** White soft-shadow card, the default container. */
+export function Card({ className = "", children, ...props }: ComponentProps<"div">) {
+  return (
+    <div className={`rounded-md bg-surface p-3.5 shadow-receipt ${className}`} {...props}>
+      {children}
+    </div>
   );
 }

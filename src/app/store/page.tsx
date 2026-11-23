@@ -20,7 +20,7 @@ export default async function StorePage() {
 
   return (
     <div className="mx-auto min-h-dvh max-w-[480px]">
-      <AppHeader title={store?.name ?? "Store"} sub={viewer.barangayName} />
+      <AppHeader sub={`${store?.name ?? "Store"} · ${viewer.barangayName}`} />
       <main className="px-4 pb-12 pt-2">
         <PageTitle sub="Scan or type the code on the customer's phone.">Redeem voucher</PageTitle>
         {store ? <RedeemForm /> : <Notice tone="warning">Your account is not linked to a store yet. Ask the barangay admin to add you.</Notice>}
@@ -28,7 +28,7 @@ export default async function StorePage() {
         {recent && recent.length > 0 && (
           <div className="mt-8">
             <Section title="Recently redeemed">
-              <ul className="divide-y divide-border rounded-md border border-border bg-surface">
+              <ul className="divide-y divide-border rounded-md bg-surface shadow-receipt">
                 {recent.map((v) => (
                   <li key={v.code} className="flex justify-between gap-3 px-4 py-3">
                     <span className="num">{v.code}</span>

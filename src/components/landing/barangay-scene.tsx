@@ -7,7 +7,7 @@ import { Vector3, type Mesh } from "three";
 import { EXAMPLE_HOUSES, EXAMPLE_WINNER } from "./example-data";
 
 // Colors mirror the design tokens (three.js can't read CSS variables).
-const C = { wall: "#ffffff", roof: "#78716c", bar: "#047857", winner: "#fcd34d" };
+const C = { wall: "#ffffff", roof: "#121412", bar: "#2b2f2b", winner: "#c6f432" };
 const BAR_SCALE = 0.17; // world units per % point
 const xOf = (i: number) => (i - (EXAMPLE_HOUSES.length - 1) / 2) * 2.6;
 
@@ -97,7 +97,7 @@ export default function BarangayScene({ reduced }: { reduced: boolean }) {
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[200, 200]} />
           {/* Shadows only: the houses sit directly on the page background. */}
-          <shadowMaterial opacity={0.14} />
+          <shadowMaterial opacity={0.16} />
         </mesh>
         {EXAMPLE_HOUSES.map((h, i) => (
           <House key={h.label} index={i} reduced={reduced} onHover={setHovered} />

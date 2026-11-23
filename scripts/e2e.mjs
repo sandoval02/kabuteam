@@ -55,7 +55,8 @@ async function enterBill(page, { account, kwh, amount, baseline }) {
   await page.getByLabel("Amount due (₱)").fill(String(amount));
   await page.getByLabel("Same month last year (kWh)").fill(String(baseline));
   await page.getByRole("button", { name: "Looks right, save" }).click();
-  await page.waitForURL(/\/receipt/);
+  await page.getByRole("dialog").getByRole("button", { name: "Save bill" }).click();
+  await page.waitForURL(/\/home/);
 }
 
 const browser = await chromium.launch({ channel: "msedge", headless: true });
@@ -76,15 +77,15 @@ try {
   await a.getByLabel("Email").fill(email("a"));
   await a.getByLabel("Password").fill(PASSWORD);
   await a.getByRole("button", { name: "Create account" }).last().click();
-  await a.waitForURL(/\/receipt/);
-  await a.getByText("Scan your electric bill to see where your money goes").waitFor();
+  await a.waitForURL(/\/home/);
+  await a.getByRole("tab", { name: "Get started" }).waitFor();
   ok("new account lands on the empty receipt state");
   const { data: aUser } = await admin.auth.admin.listUsers({ perPage: 1000 });
   createdUsers.push(aUser.users.find((u) => u.email === email("a")).id);
 
   await enterBill(a, { account: `11${run.slice(-8).replace(/\D/g, "7").padStart(8, "1")}`, kwh: 117, amount: 1469.52, baseline: 150 });
-  await a.getByText("Bill saved. You are on this month").waitFor();
-  assert.ok(await a.getByText("22%").first().isVisible());
+  await a.getByText("Bill saved. You're on this month").waitFor();
+  assert.ok(await a.getByText("22% less than last year").first().isVisible());
   ok("approved bill scored 22% saved");
 
   step("Resident A adds appliances; receipt itemizes");
@@ -153,12 +154,14 @@ try {
   ok("store added");
   const cBill = ad.locator("li", { hasText: "Rate ₱1.67/kWh is outside" });
   await cBill.getByRole("button", { name: "Approve" }).click();
+  await ad.getByRole("dialog").getByRole("button", { name: "Approve" }).click();
   await ad.getByText("Bill approved and added to the ranking.").waitFor();
   ok("flagged bill approved");
   await ad.reload();
   await ad.getByLabel("Store", { exact: true }).selectOption({ label: "Aling Nena Store" });
   await ad.getByLabel("Vouchers").fill("2");
   await ad.getByRole("button", { name: "Issue vouchers" }).click();
+  await ad.getByRole("dialog").getByRole("button", { name: "Issue vouchers" }).click();
   await ad.getByText(/vouchers? issued to/).waitFor();
   ok(await ad.getByText(/vouchers? issued to/).innerText());
 

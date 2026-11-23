@@ -2,51 +2,47 @@
 
 **Rule:** no arbitrary colors, font sizes, spacing, radii or shadows. Use only the tokens below. Need a new value? Add it here first, with a reason.
 
-**Direction:** Swiss minimal, built around a **printed receipt**. Paper-white surfaces, monospace numbers, dashed dividers, one green for "saved / go". It should look like a trustworthy utility tool, not a startup landing page. Generated with `ui-ux-pro-max` (style: Minimalism & Swiss, variance 3, motion 2), then adjusted:
-- the palette background moved from mint to warm paper, and primary darkened to emerald-700 so white text passes AA;
-- the suggested fonts (Syncopate / Space Mono, tagged "music festival") were replaced. **Inter** (requested by the project owner) is the UI font; **JetBrains Mono** is used for numbers so peso amounts line up. Impeccable flags Inter as overused; that finding is waived with the reason in `.impeccable/config.json`.
+**Direction:** the **Tugon design system** (fonts, shape language, floating nav) with a **Neobank-style light theme** and an **OKX-style dark theme**. Both share one rule, 60 / 30 / 10, with **lime as the only accent**. The UI renders at **90% scale** (`html { font-size: 90% }`; everything is in rem).
 
-**Light mode only.** Users scan bills in daylight and in dim kitchens; one well-tested theme beats two half-tested ones. Dark mode is out of scope.
+### Themes
 
-## Tokens
+| | Light (default) | Dark |
+|---|---|---|
+| 60% page + cards | `#f2f3f0` page, white cards, `#f4f5f2` rows | `#0a0d0b` page, `#121a15` cards |
+| 30% ink | black `#121412`: text, primary buttons, active nav | light text `#e8efe9`; lime primary buttons |
+| 10% lime `#c6f432` | hero/month cards, chips, rank #1, avatar, wordmark | same, plus this month's chart bar |
 
-Defined once in `src/styles/tokens.css`, exposed to Tailwind via `@theme`. Components use Tailwind classes mapped to these tokens, never raw hex.
+- The choice lives in the avatar menu and on Profile: **Light / Dark / System**. It's saved in a `theme` cookie so the server renders the right theme with no flash; **System** follows the OS (`prefers-color-scheme`).
+- Text on lime always uses `--color-on-lime` (black), in both themes. Lime is never used as text on white (1.3:1).
+- In light mode this month's chart bar is black, because lime on white fails the 3:1 graphics contrast.
+
+### Sizes (compact)
+
+Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding. Headings: display 28px, section 18px; amounts 24px (all before the 90% scale). Bottom nav 48px, floating pill.
 
 ### Color
 
 | Token | Value | Use | Contrast |
 |---|---|---|---|
-| `--color-primary` | `#047857` | Primary buttons, links, "saved" figures | 5.48:1 on white |
-| `--color-primary-hover` | `#065F46` | Hover/pressed primary | |
-| `--color-on-primary` | `#FFFFFF` | Text on primary | 5.48:1 |
-| `--color-accent` | `#FCD34D` | Badges and vouchers **only** (the "reward" color) | text 12.1:1 on it |
-| `--color-bg` | `#F7F6F2` | Page background (receipt paper) | |
-| `--color-surface` | `#FFFFFF` | Receipt, cards, inputs | |
-| `--color-text` | `#1C1917` | Body text, receipt numbers | 17.5:1 |
-| `--color-text-muted` | `#57534E` | Labels, helper text | 7.6:1 |
-| `--color-border` | `#E7E5E4` | Dividers, card borders (decorative) | |
-| `--color-border-strong` | `#78716C` | Input borders, focus-adjacent UI (needs 3:1) | 4.8:1 |
-| `--color-success` | `#065F46` on `#ECFDF5` | Success toasts, "verified" state | 7.3:1 |
-| `--color-warning` | `#B45309` | "Unaccounted" line, flagged-for-review | 5.0:1 |
-| `--color-error` | `#B91C1C` | Errors, destructive actions | 6.5:1 |
-| `--color-focus` | `#047857` | 2px focus ring, 2px offset | |
+| `--color-text` | `#e8efe9` | Body text | 15.2:1 on surface |
+| `--color-muted` | `#9aab9f` | Labels, helper text | 7.4:1 on surface |
+| `--color-border-strong` | `#5f7566` | Input borders | 3.6:1 on surface |
+| `--color-primary` | `#c6f432` | Lime accent | 13.8:1 on surface; dark text on it 15.2:1 |
+| `--color-success` | `#4ade80` | Success text | 10:1 |
+| `--color-warning` | `#fbbf24` | Unaccounted line, flags | 10.6:1 |
+| `--color-error` | `#f87171` | Errors | 6.4:1 |
 
-Never use color alone to carry meaning: the "Unaccounted" line also has an alert icon and a label; leaderboard rank changes show ▲/▼ glyphs with text.
+QR codes stay dark-on-white so any phone camera can scan them.
 
 ### Typography
 
-| Token | Size / line-height / weight | Font | Use |
-|---|---|---|---|
-| `--text-display` | 32 / 40 / 600 | Inter | Screen title (one per screen) |
-| `--text-h2` | 20 / 28 / 600 | Inter | Section headings |
-| `--text-body` | 16 / 24 / 400 | Inter | Default |
-| `--text-small` | 14 / 20 / 400 | Inter | Helper text, captions (minimum size) |
-| `--text-amount-lg` | 28 / 36 / 600 | JetBrains Mono | Receipt total, savings % |
-| `--text-amount` | 16 / 24 / 500 | JetBrains Mono | Receipt line amounts, kWh, ranks |
+| Role | Font | Notes |
+|---|---|---|
+| Headings `h1`–`h3` | **Sora** 600/700 (`--font-display`) | letter-spacing -0.015em |
+| Body, UI | **Plus Jakarta Sans** (`--font-sans`) | |
+| Numbers, codes, receipt | **JetBrains Mono** (`.num`, `--font-mono`) | `tabular-nums` |
 
-- Fonts via `next/font/google` (self-hosted, no layout shift): **Inter** (variable), **JetBrains Mono** 500/600.
-- Numbers always use `tabular-nums` and JetBrains Mono so columns align.
-- Peso format: `₱1,234.50` via `Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })`.
+Sizes: display 32/38, h2 20/28, body 16/26, small 14/20 (minimum), amount-lg 28/36. Wordmark: "Tipid**Tayo**" in Sora bold, "Tayo" in lime. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
 
 ### Spacing
 
@@ -57,12 +53,13 @@ Page gutter: `--space-4` on mobile, `--space-6` from `md`.
 
 | Token | Value | Use |
 |---|---|---|
-| `--radius-sm` | 6px | Buttons, inputs, badges |
-| `--radius-md` | 10px | Cards, modals, the receipt |
-| `--shadow-sm` | `0 1px 2px rgb(28 25 23 / 0.08)` | The receipt only (it "sits on" the page) |
-| `--shadow-md` | `0 8px 24px rgb(28 25 23 / 0.16)` | Modals and bottom sheets only |
+| `--radius-sm` | 6px | Buttons, inputs (Tugon) |
+| `--radius-md` | 10px | Cards, tiles, receipt |
+| `--radius-lg` | 16px | Hero panels, floating navs |
+| `--shadow-receipt` | 1px `border` ring + deep soft drop | Every card (replaces a border) |
+| `--shadow-sheet` | ring + stronger drop | Floating navs, sheets |
 
-Cards use a border **or** a shadow, never both. Most cards use a border.
+Navs float: rounded-lg, 45–70% background with `backdrop-blur`, a hairline ring (Tugon's nav).
 
 ### Layout and breakpoints
 

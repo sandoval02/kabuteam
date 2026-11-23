@@ -8,6 +8,12 @@
         "value": "inter",
         "createdAt": "2026-11-23T04:35:49.770Z",
         "reason": "Requested by the project owner (2026-11-23)"
+      },
+      {
+        "rule": "overused-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-11-23T05:30:03.117Z",
+        "reason": "Tugon design system, requested by the project owner (2026-11-23)"
       }
     ]
   }

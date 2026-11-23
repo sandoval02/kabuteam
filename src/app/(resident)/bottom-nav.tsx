@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ScanLine, ReceiptText, Trophy, Ticket } from "lucide-react";
+import { House, ScanLine, Trophy, Ticket } from "lucide-react";
 
 const ITEMS = [
+  { href: "/home", label: "Home", Icon: House },
   { href: "/scan", label: "Scan", Icon: ScanLine },
-  { href: "/receipt", label: "Receipt", Icon: ReceiptText },
   { href: "/ranking", label: "Ranking", Icon: Trophy },
   { href: "/vouchers", label: "Vouchers", Icon: Ticket },
 ];
@@ -16,9 +16,9 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-4 bottom-[max(0.625rem,env(safe-area-inset-bottom))] mx-auto max-w-[400px] rounded-full bg-surface/90 shadow-sheet backdrop-blur-xl backdrop-saturate-150"
     >
-      <ul className="mx-auto grid max-w-[480px] grid-cols-4">
+      <ul className="grid grid-cols-4">
         {ITEMS.map(({ href, label, Icon }) => {
           const active = pathname.startsWith(href);
           return (
@@ -26,9 +26,11 @@ export function BottomNav() {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-16 flex-col items-center justify-center gap-1 text-small ${active ? "font-semibold text-primary" : "text-muted"}`}
+                className={`flex h-12 flex-col items-center justify-center gap-px text-[0.6875rem] ${active ? "font-semibold text-primary" : "text-muted"}`}
               >
-                <Icon size={24} strokeWidth={1.75} aria-hidden />
+                <span className={`flex h-6 w-10 items-center justify-center rounded-full transition-colors duration-100 ${active ? "bg-primary-soft" : ""}`}>
+                  <Icon size={18} strokeWidth={1.75} aria-hidden />
+                </span>
                 {label}
               </Link>
             </li>

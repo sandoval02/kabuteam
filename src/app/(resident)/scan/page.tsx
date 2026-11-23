@@ -1,8 +1,8 @@
-import { Trash2 } from "lucide-react";
+import { Plug, ReceiptText } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getAppliances, getLatestBill, monthLabel } from "@/lib/data";
 import { Notice, PageTitle, Section, kwh } from "@/components/ui";
-import { deleteAppliance } from "../actions";
+import { DeleteAppliance } from "./delete-appliance";
 import { BillScanner } from "./bill-scanner";
 import { ApplianceForm } from "./appliance-form";
 
@@ -14,7 +14,7 @@ export default async function ScanPage() {
     <>
       <PageTitle sub="Your bill shows the total. Your appliances show where it goes.">Scan</PageTitle>
 
-      <Section title="Electric bill">
+      <Section title="Electric bill" icon={ReceiptText}>
         {bill && (
           <div className="mb-3">
             <Notice tone="info">
@@ -25,9 +25,9 @@ export default async function ScanPage() {
         <BillScanner />
       </Section>
 
-      <Section title="Appliances">
+      <Section title="Appliances" icon={Plug} id="appliances">
         {appliances.length > 0 && (
-          <ul className="mb-4 divide-y divide-border rounded-md border border-border bg-surface">
+          <ul className="mb-4 divide-y divide-border rounded-md bg-surface shadow-receipt">
             {appliances.map((a) => (
               <li key={a.id} className="flex items-center justify-between gap-3 py-2 pl-4 pr-1">
                 <div>
@@ -36,16 +36,7 @@ export default async function ScanPage() {
                     {a.watts} W · {a.hours_per_day} h/day{a.is_inverter ? " · inverter" : ""}
                   </p>
                 </div>
-                <form action={deleteAppliance}>
-                  <input type="hidden" name="id" value={a.id} />
-                  <button
-                    type="submit"
-                    aria-label={`Remove ${a.label}`}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-sm text-muted hover:bg-error-bg hover:text-error"
-                  >
-                    <Trash2 size={20} strokeWidth={1.75} aria-hidden />
-                  </button>
-                </form>
+                <DeleteAppliance id={a.id} label={a.label} />
               </li>
             ))}
           </ul>

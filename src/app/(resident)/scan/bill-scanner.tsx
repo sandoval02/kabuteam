@@ -1,13 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { ScanLine } from "lucide-react";
 import { PhotoCapture, postPhoto } from "@/components/photo-capture";
 import { Button, Field, Notice } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { baselineFromHistory, type HistoryEntry } from "@/lib/scoring";
 import type { BillExtraction } from "@/lib/extraction/schemas";
-import { saveBill, type FormState } from "../actions";
+import { ValidatedForm } from "@/components/form";
+import { saveBill } from "../actions";
 
 type ExtractResponse = { extraction: BillExtraction | null; servedBy: string; photoPath: string | null };
 type Stage =
@@ -18,7 +19,6 @@ type Stage =
 export function BillScanner() {
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [retake, setRetake] = useState(false);
-  const [state, action] = useActionState<FormState, FormData>(saveBill, {});
 
   async function onPhoto(file: File) {
     setRetake(false);
@@ -45,11 +45,11 @@ export function BillScanner() {
           <Notice tone="warning">That photo could not be read as a bill. Retake it flat, in good light, with the whole page in view.</Notice>
         )}
         {stage.kind === "reading" ? (
-          <div className="relative overflow-hidden rounded-md border border-border bg-surface" aria-live="polite">
+          <div className="relative overflow-hidden rounded-md bg-surface shadow-receipt" aria-live="polite">
             {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
             <img src={stage.preview} alt="Your bill photo" className="max-h-64 w-full object-contain opacity-50" />
             <p className="absolute inset-0 flex items-center justify-center gap-2 font-semibold">
-              <ScanLine size={20} aria-hidden className="animate-pulse" />
+              <ScanLine size={15} aria-hidden className="animate-pulse" />
               Reading your bill…
             </p>
           </div>
@@ -71,12 +71,11 @@ export function BillScanner() {
   const extracted = ex ? { kwh: ex.kwh, amountDue: ex.amount_due, baseline } : null;
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <ValidatedForm action={saveBill} schema="bill">
       {stage.note && <Notice tone="warning">{stage.note}</Notice>}
       {ex && <Notice tone="info">Check each number against your bill. Fix anything that is wrong before saving.</Notice>}
-      {state.error && <Notice tone="error">{state.error}</Notice>}
 
-      <Field label="Account number" name="account_number" inputMode="numeric" required defaultValue={ex?.account_number ?? ""} />
+      <Field label="Account number" name="account_number" inputMode="numeric" autoComplete="off" required maxLength={15} placeholder="10 digits on your bill" defaultValue={ex?.account_number ?? ""} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Period start" name="period_start" type="date" required defaultValue={ex?.period_start ?? ""} />
         <Field label="Period end" name="period_end" type="date" required defaultValue={ex?.period_end ?? ""} />
@@ -105,10 +104,17 @@ export function BillScanner() {
       <input type="hidden" name="photo_path" value={stage.res?.photoPath ?? ""} />
       <input type="hidden" name="served_by" value={stage.res?.servedBy ?? "manual"} />
 
-      <SubmitButton pendingText="Saving…">Looks right, save</SubmitButton>
+      <SubmitButton
+        pendingText="Saving…"
+        data-confirm-title="Save this bill?"
+        data-confirm-body="You can't edit a bill after saving. It goes on this month's ranking, or to the barangay for a check if something looks off."
+        data-confirm-label="Save bill"
+      >
+        Looks right, save
+      </SubmitButton>
       <Button variant="secondary" type="button" onClick={() => setStage({ kind: "idle" })}>
         Retake photo
       </Button>
-    </form>
+    </ValidatedForm>
   );
 }

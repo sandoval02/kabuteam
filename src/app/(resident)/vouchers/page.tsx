@@ -2,12 +2,14 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import { Ticket } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
-import { monthLabel } from "@/lib/data";
+import { getLeaderboard, monthLabel } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/server";
-import { Notice, PageTitle, peso } from "@/components/ui";
+import { PageTitle, buttonStyles, pct, peso } from "@/components/ui";
 
 export default async function VouchersPage() {
   const viewer = await requireViewer("resident");
+  const board = await getLeaderboard(viewer.barangayId);
+  const myRank = board.rows.findIndex((r) => r.householdId === viewer.householdId);
   const { data } = await createAdminClient()
     .from("vouchers")
     .select("id, code, amount, score_month, expires_at, redeemed_at, stores(name)")
@@ -27,23 +29,34 @@ export default async function VouchersPage() {
     <>
       <PageTitle sub="Show the QR code at the partner store.">Vouchers</PageTitle>
       {vouchers.length === 0 ? (
-        <Notice tone="info">
-          Finish among the top savers this month to earn a voucher at a partner sari-sari store.{" "}
-          <Link href="/ranking" className="font-semibold text-primary underline">
+        <div className="rounded-md bg-surface shadow-receipt p-4">
+          <Ticket size={18} strokeWidth={1.75} aria-hidden className="text-muted" />
+          <p className="mt-2 font-semibold">No vouchers yet</p>
+          <p className="mt-1 text-muted">
+            Each month the barangay gives vouchers at partner sari-sari stores to its top savers.
+            {myRank >= 0 && board.month && (
+              <>
+                {" "}
+                For {monthLabel(board.month)} you are <strong className="text-text">#{myRank + 1} of {board.rows.length}</strong> at{" "}
+                <span className="num text-primary">{pct(board.rows[myRank].score)}</span>.
+              </>
+            )}
+          </p>
+          <Link href="/ranking" className={`${buttonStyles.secondary} mt-4`}>
             See the ranking
           </Link>
-        </Notice>
+        </div>
       ) : (
         <ul className="flex flex-col gap-4">
           {vouchers.map((v) => (
             <li
               key={v.id}
-              className={`rounded-md border border-border bg-surface p-4 ${v.state !== "active" ? "opacity-60" : ""}`}
+              className={`rounded-md bg-surface shadow-receipt p-4 ${v.state !== "active" ? "opacity-60" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="flex items-center gap-2 font-semibold">
-                    <Ticket size={20} strokeWidth={1.75} aria-hidden />
+                    <Ticket size={15} strokeWidth={1.75} aria-hidden />
                     {peso(Number(v.amount))} off at {v.store}
                   </p>
                   <p className="text-small text-muted">Top saver, {monthLabel(v.score_month)}</p>

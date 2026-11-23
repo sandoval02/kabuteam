@@ -3,47 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { appliance as ApplianceForm, bill as BillForm, parseForm, type FormState } from "@/lib/validation";
 import { requireViewer } from "@/lib/auth";
 import { scoreBill } from "@/lib/data";
-import { APPLIANCE_TYPES, applianceTypeKeys } from "@/lib/extraction/schemas";
+import { APPLIANCE_TYPES } from "@/lib/extraction/schemas";
 import { plausibilityFlags, scoreMonth } from "@/lib/scoring";
 import { createAdminClient } from "@/lib/supabase/server";
 
-export type FormState = { error?: string; ok?: string };
-
-const num = z.coerce.number();
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a full date");
-const jsonOf = <T extends z.ZodType>(schema: T) =>
-  z.string().transform((s, ctx) => {
-    try {
-      return schema.parse(JSON.parse(s || "null"));
-    } catch {
-      ctx.addIssue({ code: "custom", message: "Invalid data" });
-      return z.NEVER;
-    }
-  });
-
-const BillForm = z
-  .object({
-    account_number: z.string().trim().regex(/^\d{6,15}$/, "Account number should be 6 to 15 digits"),
-    period_start: isoDate,
-    period_end: isoDate,
-    kwh: num.positive("kWh must be more than 0").max(100000),
-    amount_due: num.positive("Amount must be more than 0").max(1000000),
-    baseline_kwh: z.union([z.literal("").transform(() => null), num.positive().max(100000)]),
-    history: jsonOf(z.array(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/), kwh: z.number().nonnegative() })).max(24)),
-    extracted: jsonOf(
-      z.object({ kwh: z.number().nullable(), amountDue: z.number().nullable(), baseline: z.number().nullable() }).nullable(),
-    ),
-    photo_path: z.string().max(200),
-    served_by: z.string().max(80),
-  })
-  .refine((b) => b.period_end > b.period_start, { message: "End date must be after start date", path: ["period_end"] });
-
 export async function saveBill(_: FormState, form: FormData): Promise<FormState> {
   const viewer = await requireViewer("resident");
-  const parsed = BillForm.safeParse(Object.fromEntries(form));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const parsed = parseForm(BillForm, form);
+  if ("state" in parsed) return parsed.state;
   const b = parsed.data;
   const admin = createAdminClient();
 
@@ -85,28 +55,20 @@ export async function saveBill(_: FormState, form: FormData): Promise<FormState>
     .select("id")
     .single();
   if (error) {
-    if (error.code === "23505") return { error: "You already saved a bill for this billing month." };
+    if (error.code === "23505") return { error: "You already saved a bill for this billing month.", fieldErrors: { period_end: "This month already has a bill" } };
     console.error("[saveBill]", error);
     return { error: "Could not save the bill. Try again." };
   }
 
   if (status === "approved") await scoreBill(bill.id, b.baseline_kwh);
   revalidatePath("/", "layout");
-  redirect(`/receipt?saved=${status}`);
+  redirect(`/home?saved=${status}`);
 }
-
-const ApplianceForm = z.object({
-  type: z.enum(applianceTypeKeys),
-  label: z.string().trim().max(40),
-  watts: z.coerce.number().int("Watts must be a whole number").min(1, "Watts must be at least 1").max(10000, "Watts looks too high"),
-  hours_per_day: z.coerce.number().min(0).max(24, "A day has 24 hours"),
-  is_inverter: z.enum(["yes", "no", "unknown"]),
-});
 
 export async function addAppliance(_: FormState, form: FormData): Promise<FormState> {
   const viewer = await requireViewer("resident");
-  const parsed = ApplianceForm.safeParse(Object.fromEntries(form));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const parsed = parseForm(ApplianceForm, form);
+  if ("state" in parsed) return parsed.state;
   const a = parsed.data;
   const { error } = await createAdminClient()
     .from("appliances")
@@ -126,10 +88,17 @@ export async function addAppliance(_: FormState, form: FormData): Promise<FormSt
   return { ok: `${a.label || APPLIANCE_TYPES[a.type].label} added.` };
 }
 
-export async function deleteAppliance(form: FormData) {
+export async function deleteAppliance(_: FormState, form: FormData): Promise<FormState> {
   const viewer = await requireViewer("resident");
   const id = z.uuid().safeParse(form.get("id"));
-  if (!id.success) return;
-  await createAdminClient().from("appliances").delete().eq("id", id.data).eq("household_id", viewer.householdId);
+  if (!id.success) return { error: "Invalid request." };
+  const { data } = await createAdminClient()
+    .from("appliances")
+    .delete()
+    .eq("id", id.data)
+    .eq("household_id", viewer.householdId)
+    .select("label")
+    .maybeSingle();
   revalidatePath("/", "layout");
+  return data ? { ok: `${data.label} removed.` } : { error: "That appliance was already removed." };
 }

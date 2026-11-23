@@ -7,9 +7,9 @@ import { buttonStyles } from "./ui";
 const MAX_EDGE = 1600;
 
 /** Downscale to ≤1600px JPEG before upload: smaller, faster, cheaper requests. */
-export async function resizeImage(file: File): Promise<Blob> {
+export async function resizeImage(file: File, maxEdge = MAX_EDGE): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
@@ -41,7 +41,7 @@ export function PhotoCapture({
         onClick={() => input.current?.click()}
         className={`${buttonStyles[variant]} w-full`}
       >
-        <Camera size={20} strokeWidth={1.75} aria-hidden />
+        <Camera size={15} strokeWidth={1.75} aria-hidden />
         {label}
       </button>
       <input

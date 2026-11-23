@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireViewer } from "@/lib/auth";
 import { getLeaderboard, scoreBill } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/server";
-import type { ActionState } from "@/components/action-form";
+import { barangayName, parseForm, store as storeSchema, vouchers as vouchersSchema, type FormState as ActionState } from "@/lib/validation";
 
 const done = (ok: string): ActionState => {
   revalidatePath("/", "layout");
@@ -16,10 +16,10 @@ const done = (ok: string): ActionState => {
 
 export async function renameBarangay(_: ActionState, form: FormData): Promise<ActionState> {
   const viewer = await requireViewer("admin");
-  const name = z.string().trim().min(3, "Name is too short").max(80).safeParse(form.get("name"));
-  if (!name.success) return { error: name.error.issues[0].message };
-  const { error } = await createAdminClient().from("barangays").update({ name: name.data }).eq("id", viewer.barangayId);
-  return error ? { error: "Could not rename. That name may already exist." } : done("Barangay renamed.");
+  const parsed = parseForm(barangayName, form);
+  if ("state" in parsed) return parsed.state;
+  const { error } = await createAdminClient().from("barangays").update({ name: parsed.data.name }).eq("id", viewer.barangayId);
+  return error ? { error: "Could not rename.", fieldErrors: { name: "That name may already be used" } } : done("Barangay renamed.");
 }
 
 export async function reviewBill(_: ActionState, form: FormData): Promise<ActionState> {
@@ -49,20 +49,18 @@ export async function reviewBill(_: ActionState, form: FormData): Promise<Action
 
 export async function addStore(_: ActionState, form: FormData): Promise<ActionState> {
   const viewer = await requireViewer("admin");
-  const parsed = z
-    .object({ name: z.string().trim().min(2, "Enter the store name").max(60), email: z.email("Enter the owner's email").toLowerCase() })
-    .safeParse(Object.fromEntries(form));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const parsed = parseForm(storeSchema, form);
+  if ("state" in parsed) return parsed.state;
 
   const admin = createAdminClient();
   // ponytail: scans the first 1000 users; use a SQL lookup if the barangay grows past that.
   const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
   const owner = list?.users.find((u) => u.email?.toLowerCase() === parsed.data.email);
-  if (!owner) return { error: "No account with that email. Ask the store owner to create an account first." };
+  if (!owner) return { error: "No account with that email.", fieldErrors: { email: "Ask the store owner to create an account first" } };
 
   const { data: profile } = await admin.from("profiles").select("role, barangay_id").eq("id", owner.id).single();
-  if (!profile || profile.barangay_id !== viewer.barangayId) return { error: "That account is not in this barangay." };
-  if (profile.role === "admin") return { error: "An admin account can't also be a store." };
+  if (!profile || profile.barangay_id !== viewer.barangayId) return { error: "That account is not in this barangay.", fieldErrors: { email: "Not in this barangay" } };
+  if (profile.role === "admin") return { error: "An admin account can't also be a store.", fieldErrors: { email: "This is an admin account" } };
 
   const { error } = await admin.from("stores").insert({ barangay_id: viewer.barangayId, name: parsed.data.name, owner_profile_id: owner.id });
   if (error) return { error: error.code === "23505" ? "That account already has a store." : "Could not add the store." };
@@ -75,15 +73,8 @@ const newCode = () => Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CO
 
 export async function issueVouchers(_: ActionState, form: FormData): Promise<ActionState> {
   const viewer = await requireViewer("admin");
-  const parsed = z
-    .object({
-      store_id: z.uuid("Pick a store"),
-      count: z.coerce.number().int().min(1, "At least 1 voucher").max(50),
-      amount: z.coerce.number().min(1, "Amount must be at least ₱1").max(5000),
-      days: z.coerce.number().int().min(1).max(90),
-    })
-    .safeParse(Object.fromEntries(form));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const parsed = parseForm(vouchersSchema, form);
+  if ("state" in parsed) return parsed.state;
   const v = parsed.data;
 
   const admin = createAdminClient();

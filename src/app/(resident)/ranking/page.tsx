@@ -23,16 +23,22 @@ export default async function RankingPage() {
             : "No ranking yet this month. It starts when two households have scanned their bills."}
         </Notice>
       ) : (
-        <ol className="divide-y divide-border rounded-md border border-border bg-surface">
+        <ol className="divide-y divide-border rounded-md bg-surface shadow-receipt">
           {rows.map((r, i) => {
             const isMe = i === mine;
             return (
               <li
                 key={r.householdId}
                 aria-current={isMe ? "true" : undefined}
-                className={`flex items-center gap-3 px-4 py-3 ${isMe ? "bg-success-bg" : ""}`}
+                className={`flex items-center gap-3 px-4 py-3 first:rounded-t-md last:rounded-b-md ${isMe ? "bg-primary-soft" : ""}`}
               >
-                <span className="num w-8 text-h2 font-semibold text-muted">{i + 1}</span>
+                <span
+                  className={`num flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-semibold ${
+                    i === 0 ? "bg-lime text-on-lime" : "bg-surface-2 text-muted"
+                  }`}
+                >
+                  {i + 1}
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">
                     {r.label}
@@ -41,15 +47,15 @@ export default async function RankingPage() {
                   {r.badges.length > 0 && (
                     <p className="mt-0.5 flex flex-wrap gap-1">
                       {r.badges.map((b) => (
-                        <span key={b} className="inline-flex items-center gap-1 rounded-sm bg-accent px-1.5 text-small">
-                          <Award size={14} aria-hidden />
+                        <span key={b} className="inline-flex items-center gap-1 rounded-full bg-green-soft px-2 text-small text-accent">
+                          <Award size={12} aria-hidden />
                           {BADGES[b]?.label ?? b}
                         </span>
                       ))}
                     </p>
                   )}
                 </div>
-                <span className={`num text-h2 font-semibold ${r.score > 0 ? "text-primary" : ""}`}>{pct(r.score)}</span>
+                <span className={`num text-h2 font-semibold ${i === 0 ? "text-primary" : ""}`}>{pct(r.score)}</span>
               </li>
             );
           })}

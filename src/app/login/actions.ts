@@ -1,15 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { z } from "zod";
+import { credentials, parseForm, type FormState } from "@/lib/validation";
 import { createAdminClient, createUserClient } from "@/lib/supabase/server";
 
-export type AuthState = { error?: string; email?: string };
-
-const Credentials = z.object({
-  email: z.email("Enter a valid email").transform((e) => e.trim().toLowerCase()),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
+export type AuthState = FormState;
 
 const adminEmails = () =>
   (process.env.ADMIN_EMAILS ?? "")
@@ -18,30 +13,27 @@ const adminEmails = () =>
     .filter(Boolean);
 
 export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
-  const email = String(form.get("email") ?? "");
-  const parsed = Credentials.safeParse({ email, password: form.get("password") });
-  if (!parsed.success) return { error: parsed.error.issues[0].message, email };
+  const parsed = parseForm(credentials, form);
+  if ("state" in parsed) return parsed.state;
   const supabase = await createUserClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { error: "Wrong email or password.", email };
+  if (error) return { error: "Wrong email or password.", fieldErrors: { password: "Check your password and try again" } };
   redirect("/");
 }
 
 // Accounts are created server-side as already confirmed: Supabase's built-in email sender
 // allows only a few emails per hour, which would break a live demo. See ARCHITECTURE.md.
 export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
-  const email = String(form.get("email") ?? "");
-  const parsed = Credentials.safeParse({ email, password: form.get("password") });
-  if (!parsed.success) return { error: parsed.error.issues[0].message, email };
+  const parsed = parseForm(credentials, form);
+  if ("state" in parsed) return parsed.state;
 
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.createUser({ ...parsed.data, email_confirm: true });
   if (error) {
     const taken = /already|registered|exists/i.test(error.message);
-    return {
-      error: taken ? "That email already has an account. Sign in instead." : "Could not create the account. Try again.",
-      email,
-    };
+    return taken
+      ? { error: "That email already has an account. Sign in instead.", fieldErrors: { email: "Already registered" } }
+      : { error: "Could not create the account. Try again." };
   }
   if (adminEmails().includes(parsed.data.email)) {
     await admin.from("profiles").update({ role: "admin" }).eq("id", data.user.id);
@@ -52,7 +44,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   redirect("/");
 }
 
-export async function signOut() {
+export async function signOut(): Promise<FormState> {
   const supabase = await createUserClient();
   await supabase.auth.signOut();
   redirect("/login");

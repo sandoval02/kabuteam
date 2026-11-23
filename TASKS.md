@@ -9,8 +9,8 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 - [x] Create repo, Next.js app (TypeScript strict, Tailwind, ESLint)
 - [x] Tokens in `src/app/globals.css` (`@theme`); fonts via `next/font`
 - [x] Supabase project; `.env.local` filled
-- [ ] Vercel project linked (add the same env vars in Vercel)
-- [ ] Collect demo material: 3+ real Meralco bill photos (with consent), 6+ appliance sticker photos
+- [ ] Vercel project linked (add the same env vars in Vercel) **(needs your Vercel account)**
+- [ ] Collect demo material: 3+ real Meralco bill photos (with consent), 6+ appliance sticker photos **(needs real photos; synthetic samples are in `scripts/fixtures/`)**
 
 ## Phase 1: Core receipt (to ~35%)
 
@@ -31,7 +31,7 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 | # | Task | Depends on | Owner | Done |
 |---|---|---|---|---|
 | 2.1 | Migrations: tables, constraints, RLS, leaderboard view, seed barangay + store | — | | [x] |
-| 2.2 | Magic-link login, profile with role + household label | 2.1 | | [x] |
+| 2.2 | Email + password login, profile with role + household label | 2.1 | | [x] |
 | 2.3 | Save bills/appliances; compute score on approve; flag on plausibility failure | 1.1, 2.1 | | [x] |
 | 2.4 | Ranking screen (current month, my row pinned, empty state) | 2.3 | | [x] |
 | 2.5 | Badges awarded on score (First Scan, 10% Club, Efficient Already, Top 3) | 2.3 | | [x] |
@@ -46,18 +46,20 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 - [x] Landing page (Three.js, GSAP, Motion), added on request
 - [x] `npm test` and `npm run e2e` pass
 
-- [ ] Run [TESTING.md](TESTING.md) end to end on a real phone
-- [ ] Extraction accuracy check on all collected bills/stickers; fix prompts/schemas
-- [ ] Seed demo barangay with realistic households (documented as demo data)
-- [ ] Fix blockers only; no new features
+- [ ] Run [TESTING.md](TESTING.md) end to end on a real phone **(you; the automated run at 375px passes)**
+- [x] Extraction accuracy check on synthetic bill + sticker: every field read correctly, including the 13-bar usage chart (`gemini-3.5-flash-lite`). Repeat with real bills.
+- [x] Seed demo barangay with realistic households: `npm run seed:demo` (7 households, 1 flagged bill for the review demo)
+- [x] Fix blockers only (redeem function ambiguity, missing grants, form reset bug, stale-CSS issue)
 
 ## Phase 4: Polish and submit (final ~15%)
 
-- [ ] Mobile pass at 375px; copy pass (plain, short, no AI-sounding copy)
-- [ ] Demo script: Mang Jun's story, under 2 minutes, rehearsed twice
-- [ ] Backup screen recording of the full flow in case venue Wi-Fi fails
-- [ ] Roadmap slide: meter camera (daily feedback, Meter-Verified badge, leak alerts)
-- [ ] README accurate (setup, screenshots); submitted
+- [x] Mobile pass at 375px; copy pass. Validation on every field, confirm dialogs, toasts, light/dark mode, profile page, 90% UI scale
+- [x] Demo script written: [DEMO.md](DEMO.md)
+- [ ] Rehearse the demo twice **(team)**
+- [ ] Backup screen recording of the full flow in case venue Wi-Fi fails **(team)**
+- [x] Roadmap slide content: meter camera, in [DEMO.md](DEMO.md#roadmap-slide-meter-camera)
+- [x] README accurate (setup, screenshots, demo accounts)
+- [ ] Submitted **(team)**
 
 ## Demo script (draft)
 

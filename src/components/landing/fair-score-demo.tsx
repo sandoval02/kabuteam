@@ -18,10 +18,10 @@ function HouseControl({ house, value, onChange }: { house: House; value: number;
   const height = Math.max(0, score) / SAVINGS_CAP;
 
   return (
-    <div className="flex gap-4 rounded-md border border-border bg-surface p-4">
+    <div className="flex gap-4 rounded-md bg-surface shadow-receipt p-4">
       <div className="flex h-40 w-14 shrink-0 items-end overflow-hidden rounded-sm bg-bg" aria-hidden>
         <motion.div
-          className="w-full rounded-sm bg-primary"
+          className="w-full rounded-sm bg-primary-bright"
           animate={{ height: `${height * 100}%` }}
           transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 26 }}
         />
@@ -39,7 +39,7 @@ function HouseControl({ house, value, onChange }: { house: House; value: number;
           max={house.max}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="mt-1 h-11 w-full cursor-pointer accent-primary"
+          className="mt-1 h-10 w-full cursor-pointer accent-primary"
         />
         <p className="mt-auto">
           <span className={`num text-amount-lg font-semibold ${score > 0 ? "text-primary" : ""}`}>{score}%</span>

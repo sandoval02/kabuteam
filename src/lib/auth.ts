@@ -13,6 +13,9 @@ export type Viewer = {
   householdLabel: string;
   householdId: string;
   accountNumber: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  initials: string;
 };
 
 /** The signed-in user with profile and household, or null. Cached per request. */
@@ -26,7 +29,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("profiles")
-    .select("role, barangay_id, household_label, barangays(name), households(id, account_number)")
+    .select("role, barangay_id, household_label, display_name, avatar_path, barangays(name), households(id, account_number)")
     .eq("id", user.id)
     .single();
   if (!profile) return null;
@@ -42,6 +45,9 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     householdLabel: profile.household_label,
     householdId: (household as { id: string }).id,
     accountNumber: (household as { account_number: string | null }).account_number,
+    displayName: profile.display_name,
+    avatarUrl: profile.avatar_path ? admin.storage.from("avatars").getPublicUrl(profile.avatar_path).data.publicUrl : null,
+    initials: initialsOf(profile.display_name, user.email ?? ""),
   };
 });
 
@@ -53,6 +59,13 @@ export async function requireViewer(...roles: Role[]): Promise<Viewer> {
   return viewer;
 }
 
+function initialsOf(name: string | null, email: string): string {
+  const words = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return email.slice(0, 2).toUpperCase() || "?";
+}
+
 export function homeFor(role: Role): string {
-  return role === "admin" ? "/admin" : role === "store" ? "/store" : "/receipt";
+  return role === "admin" ? "/admin" : role === "store" ? "/store" : "/home";
 }

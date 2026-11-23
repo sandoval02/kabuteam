@@ -12,7 +12,7 @@
   }
 }
 
-/* Design tokens: the single source of truth (DESIGN_SYSTEM.md). Light mode only by decision. */
+/* Design tokens: the single source of truth (DESIGN_SYSTEM.md). Light and dark palettes. */
 @theme {
   /* Neobank-inspired light theme on the Tugon system. 60 / 30 / 10:
      60  light page + white cards        bg, surface, surface-2

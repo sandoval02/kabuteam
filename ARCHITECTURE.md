@@ -5,7 +5,7 @@
 One Next.js app (App Router, TypeScript) deployed on Vercel. The browser takes photos and renders screens. Next.js server code (Route Handlers and Server Actions) does the photo extraction with Gemini (and an optional Claude fallback), the fair-score maths, and voucher redemption. Supabase provides Postgres, login and photo storage. Role checks live in the server code; RLS is defense in depth so a UI bug cannot read another household's rows.
 
 ```
-[Phone browser] ──photo──▶ [Next.js server] ──image──▶ [Claude API (vision)]
+[Phone browser] ──photo──▶ [Next.js server] ──image──▶ [Gemini API (vision), optional Claude fallback]
        ▲                        │      ▲                       │
        │                        ▼      └───── JSON fields ◀────┘
        └──── screens ──── [Supabase: Auth · Postgres (RLS) · Storage]
@@ -49,7 +49,7 @@ Photos are read by a **chain of models tried in order**. The first one that retu
 Limits are per Google Cloud **project**, not per API key: extra keys from the same project add no quota. Order is set by `GEMINI_MODELS`; on demo day, move `gemini-3.8-flash` first if the Lite models misread real bills.
 
 - **Configured by env, not code:** `GEMINI_MODELS` is a comma-separated list, so models can be swapped when Google renames or retires them, without a deploy. Pick current Flash / Flash-Lite IDs from the AI Studio model list; Google's model names and free limits change often. A step whose key is missing is skipped.
-- **Move to the next model on:** HTTP 429 (quota/rate limit), 5xx, timeout (20s per attempt), a safety block or refusal, or output that fails Zod validation.
+- **Move to the next model on:** HTTP 429 (quota/rate limit), 5xx, timeout (15s per attempt), a safety block or refusal, or output that fails Zod validation.
 - **Don't move on for:** `readable: false` (a bad photo won't improve with another model: ask for a retake), or 400/413 bad input (fix the input instead). This saves quota.
 - **One schema, every provider:** Zod schemas below are the single source. Convert with `z.toJSONSchema()` for Gemini (`responseMimeType: "application/json"` + `responseJsonSchema`; verified working on `gemini-3.5-flash-lite` 2026-11-23. Constrain free-text fields like `appliance_type` with a Zod enum: the test returned `"REFRIGERATOR"` in caps) and pass to Claude via `zodOutputFormat()`. Every response is **re-validated with Zod on our server** whatever the provider says, because a fallback model is exactly where shape drift appears.
 - **SDKs:** `@google/genai` (`ai.models.generateContent`, image as `inlineData` base64). `@anthropic-ai/sdk` only for the optional Claude step (`client.messages.parse`, `output_config.effort: "low"`).
@@ -136,6 +136,8 @@ All in `src/lib/scoring/`, with no I/O, so they're testable with plain asserts.
 | `extraction_attempts` | `profile_id`, `kind`, `created_at` | best-effort hourly scan cap (20/user/hour); server-only |
 | `ai_providers` | `preset`, `base_url`, `model`, `api_key_enc`, `key_hint`, `last_test` | admin-added fallback providers; key encrypted; server-only |
 
+Indexes cover the common reads: `bills(household_id, period_end)`, `appliances(household_id, created_at)`, `scores(barangay_id, score_month, score)`, `profiles(barangay_id)`, `stores(barangay_id)`, and `vouchers(store_id, redeemed_at)` / `vouchers(household_id, created_at)`.
+
 The leaderboard is built by queries in `src/lib/data.ts` over `scores` joined to `profiles.household_label`, for the latest scored month and the viewer's barangay. It never exposes account numbers or names. Top 3 badges are awarded by `scoreBill` when at least two households have scores in that month.
 
 RLS: signed-in users can read their own profile, household, bills, appliances, scores, badges and vouchers; stores and barangays are readable. Role restrictions (store/admin) are enforced in server actions and pages, which use the server-only client for the reads and writes they authorize.
@@ -199,7 +201,7 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | 2026-11-23 | Next.js 16 `cacheComponents` off | Every screen depends on the signed-in user; standard dynamic rendering is simpler |
 | 2026-11-23 | Migrations applied with `scripts/db-migrate.mjs` (pg), not the Supabase CLI | The CLI binary would not install on Windows; the script tracks applied files in `_migrations` |
 | 2026-11-23 | Explicit `grant`s in a migration | This Supabase project does not auto-grant new tables to `service_role` / `authenticated` |
-| 2026-11-23 | Landing page with Three.js, GSAP, Motion, Tugon type system | Requested by the project owner; each animation shows a real mechanic, reduced motion respected; the font choice is documented in DESIGN_SYSTEM.md |
+| 2026-11-23 | Landing page with Three.js, GSAP, CSS transitions, Tugon type system | Requested by the project owner; each animation shows a real mechanic, reduced motion respected; the 3D scene and GSAP load only when needed; the font choice is documented in DESIGN_SYSTEM.md |
 | 2026-11-23 | Gemini (free) first, fallback chain Flash → Flash-Lite → optional Claude Haiku → manual entry | Zero cost for the hackathon; separate per-model quotas plus a fallback keep scanning working when one quota or provider fails |
 | 2026-11-23 | Light and dark themes, saved in a `theme` cookie | The Tugon/Neobank light theme and OKX-style dark theme share one token set; the cookie lets the server render the right theme without a flash |
 | 2026-11-23 | Hide the Next.js dev indicator; route-level `loading.tsx` skeletons on resident pages | The dev badge covered the bottom nav's Scan tab and flashed "Rendering…" on every navigation; skeletons give immediate feedback while the dynamic page renders |
@@ -214,6 +216,10 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | 2026-11-23 | Baseline security headers in `next.config.ts` | `nosniff`, referrer policy, frame denial, camera-only permissions and HSTS; a strict CSP is deferred until the Next runtime is tested with it |
 | 2026-11-23 | ~~Google sign-in via Supabase OAuth (PKCE, `/auth/callback`)~~ Superseded the same day, see below | The provider was never enabled in Supabase and the Google client had no matching redirect URI |
 | 2026-11-23 | Failed sign-in reports "not registered" / "uses Google" / "wrong password" via the service-role-only `auth_email_status()` function | Requested by the project owner. Trade-off: it reveals whether an email has an account (account enumeration); acceptable for a barangay demo, revisit with rate limiting before wider launch |
+| 2026-11-23 | Land on the receipt after saving a bill | The receipt is the product's payoff and the demo's "wow" moment; it saves a Home → Full receipt tap |
+| 2026-11-23 | Ranking shows both the score and the actual % saved, and labels the low-usage floor | The list still sorts by score, but nobody mistakes the floor for real savings |
+| 2026-11-23 | A rejected bill can be replaced for the same month; old score and photo are cleared | Gives the resident a recovery path without weakening one-bill-per-month uniqueness |
+| 2026-11-23 | Admin review shows account last 4, AI/manual source, inline photo and next voucher recipients | Faster, more trustworthy review; the leaderboard still never exposes account numbers |
 | 2026-11-23 | Sign-up picks a role: Household, Sari-sari store (admin approves before it can get vouchers), Barangay admin (needs `ADMIN_SIGNUP_CODE`) | Requested by the project owner: stores and admins had no way to create their own accounts. The code and the approval step stop anyone from making themselves an admin or a fake store that collects barangay money |
 | 2026-11-23 | Privacy consent checkbox at sign-up, stored as `profiles.consented_at` | Data Privacy Act (RA 10173); listed as an open item in the pilot brief |
 | 2026-11-23 | Google sign-in through Google Identity Services + server-verified ID token + `generateLink`/`verifyOtp` session, replacing Supabase OAuth | Works with only the public client ID and JavaScript origins (no Supabase provider setup, no redirect URI, no client secret in the app), and keeps role choice and consent in the same form. Trade-off: one `tokeninfo` request per Google sign-in |

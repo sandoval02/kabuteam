@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { Avatar } from "./avatar";
-import { ValidatedForm } from "./form";
+import { SignOutForm } from "./sign-out-form";
 import { ThemeSwitcher } from "./theme-switcher";
-import { signOut } from "@/app/login/actions";
-import type { ThemeChoice } from "@/app/theme-actions";
+import type { ThemeChoice } from "@/lib/theme";
 
 type Props = { name: string; email: string; initials: string; avatarUrl: string | null; theme: ThemeChoice };
 
@@ -18,7 +17,7 @@ export function UserMenu({ name, email, initials, avatarUrl, theme }: Props) {
         type="button"
         popoverTarget="user-menu"
         aria-label="Open account menu"
-        className="cursor-pointer rounded-full transition-transform duration-100 active:scale-95"
+        className="cursor-pointer rounded-full p-1 transition-transform duration-100 active:scale-95"
       >
         <Avatar url={avatarUrl} initials={initials} />
       </button>
@@ -44,19 +43,7 @@ export function UserMenu({ name, email, initials, avatarUrl, theme }: Props) {
           <ThemeSwitcher initial={theme} />
         </div>
         <div className="my-1 h-px bg-border" />
-        <ValidatedForm action={signOut} className="contents">
-          <button
-            type="submit"
-            data-confirm-title="Sign out?"
-            data-confirm-body="You'll need your email and password to sign in again."
-            data-confirm-label="Sign out"
-            data-confirm-tone="destructive"
-            className="flex h-10 w-full cursor-pointer items-center gap-2.5 rounded-sm px-2 font-semibold text-error hover:bg-error-bg"
-          >
-            <LogOut size={14} strokeWidth={1.75} aria-hidden />
-            Sign out
-          </button>
-        </ValidatedForm>
+        <SignOutForm />
       </div>
     </>
   );

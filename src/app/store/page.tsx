@@ -5,6 +5,8 @@ import { AppHeader } from "@/components/app-header";
 import { Notice, PageTitle, Section, peso } from "@/components/ui";
 import { RedeemForm } from "./redeem-form";
 
+export const metadata = { title: "Store · Kuryentipid" };
+
 export default async function StorePage() {
   const viewer = await requireViewer("store");
   const admin = createAdminClient();

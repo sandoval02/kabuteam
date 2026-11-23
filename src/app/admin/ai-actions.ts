@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireViewer } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 import { seal, sha256, sign, signatureMatches, unseal } from "@/lib/secret-box";
-import { providerStep, withTimeout, type ProviderConfig } from "@/lib/extraction/extract";
+import { TIMEOUT_MS, providerStep, withTimeout, type ProviderConfig } from "@/lib/extraction/extract";
 import { AI_PRESETS, type PresetKey } from "@/lib/extraction/presets";
 import { BILL_PROMPT, BillExtraction } from "@/lib/extraction/schemas";
 import { aiProvider, fieldErrorsOf, type FormState } from "@/lib/validation";
@@ -40,7 +40,7 @@ async function runTest(p: ProviderConfig): Promise<TestResult> {
     text = await withTimeout(providerStep(p, BillExtraction).run({ base64: bytes.toString("base64"), mimeType: "image/jpeg" }, BILL_PROMPT, jsonSchema));
   } catch (err) {
     const message = ((err as Error)?.message ?? "Unknown error").replaceAll(p.api_key, "••••").slice(0, 200);
-    return finish(false, `No usable answer after ${seconds(Date.now() - started)}. ${message === "timeout" ? "It took longer than 20 s." : message}`);
+    return finish(false, `No usable answer after ${seconds(Date.now() - started)}. ${message === "timeout" ? `It took longer than ${TIMEOUT_MS / 1000} s.` : message}`);
   }
   log.push(`${clock()}  Answered in ${seconds(Date.now() - started)}`);
 

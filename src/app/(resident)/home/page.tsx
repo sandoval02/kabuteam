@@ -100,7 +100,11 @@ function Row({
 
 export default async function HomePage() {
   const viewer = await requireViewer("resident");
-  const [bill, board] = await Promise.all([getLatestBill(viewer.householdId), getLeaderboard(viewer.barangayId)]);
+  const [bill, board, appliances] = await Promise.all([
+    getLatestBill(viewer.householdId),
+    getLeaderboard(viewer.barangayId),
+    getAppliances(viewer.householdId),
+  ]);
 
   if (!bill) {
     return (
@@ -150,7 +154,7 @@ export default async function HomePage() {
     );
   }
 
-  const [appliances, score] = await Promise.all([getAppliances(viewer.householdId), getScore(bill.id)]);
+  const score = await getScore(bill.id);
   const rankIndex = board.month === bill.score_month ? board.rows.findIndex((r) => r.householdId === viewer.householdId) : -1;
   const receipt = reconcile(
     appliances.map((a) => ({ id: a.id, label: a.label, type: a.type, watts: a.watts, hoursPerDay: a.hours_per_day, isInverter: a.is_inverter })),
@@ -261,7 +265,7 @@ export default async function HomePage() {
                       )}
                     </ul>
                   )}
-                  <Link href="/receipt" className="mt-1 flex items-center justify-center gap-1 py-2 text-small font-semibold">
+                  <Link href="/receipt" className="mt-1 flex min-h-11 items-center justify-center gap-1 py-2 text-small font-semibold">
                     Full receipt
                     <ChevronRight size={14} aria-hidden />
                   </Link>

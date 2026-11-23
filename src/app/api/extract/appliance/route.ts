@@ -3,6 +3,8 @@ import { BadInputError, extract } from "@/lib/extraction/extract";
 import { APPLIANCE_PROMPT, ApplianceExtraction } from "@/lib/extraction/schemas";
 import { jsonError, readImageRequest } from "@/lib/extraction/route-helpers";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const input = await readImageRequest(request, "appliance");
   if (input instanceof NextResponse) return input;

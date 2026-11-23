@@ -1,17 +1,19 @@
-import { Store } from "lucide-react";
+import { ExternalLink, Store } from "lucide-react";
 import { requireViewer } from "@/lib/auth";
 import { getLeaderboard, monthLabel } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 import { ToastFromParam, ValidatedForm } from "@/components/form";
 import { SubmitButton } from "@/components/submit-button";
-import { Field, Notice, PageTitle, Section, SelectField, kwh, peso } from "@/components/ui";
+import { Field, Notice, PageTitle, Section, SelectField, kwh, pct, peso } from "@/components/ui";
 import { effectiveRate } from "@/lib/scoring";
 import { envStepNames } from "@/lib/extraction/extract";
 import { AI_PRESETS, type PresetKey } from "@/lib/extraction/presets";
 import { addStore, issueVouchers, renameBarangay, reviewBill, reviewStore } from "./actions";
 import { removeProvider, retestProvider, type TestResult } from "./ai-actions";
 import { AddProviderForm, TestLog } from "./ai-providers";
+
+export const metadata = { title: "Admin · Kuryentipid" };
 
 export default async function AdminPage() {
   const viewer = await requireViewer("admin");
@@ -20,7 +22,9 @@ export default async function AdminPage() {
   const [{ data: flaggedRaw, error: flaggedError }, { data: storesRaw, error: storesError }, board, { data: providers, error: providersError }] = await Promise.all([
     admin
       .from("bills")
-      .select("id, score_month, kwh, amount_due, baseline_kwh, flag_reasons, photo_path, households!inner(profiles!inner(household_label, barangay_id))")
+      .select(
+        "id, score_month, kwh, amount_due, baseline_kwh, flag_reasons, photo_path, served_by, households!inner(account_number, profiles!inner(household_label, barangay_id))",
+      )
       .eq("status", "flagged")
       .eq("households.profiles.barangay_id", viewer.barangayId)
       .order("created_at"),
@@ -39,15 +43,39 @@ export default async function AdminPage() {
   if (providersError) throw new Error(`Could not load AI providers: ${providersError.message}`);
   const serverSteps = envStepNames();
 
-  const flagged = await Promise.all(
-    (flaggedRaw ?? []).map(async (b) => ({
+  const photoPaths = [...new Set((flaggedRaw ?? []).map((b) => b.photo_path).filter((path): path is string => Boolean(path)))];
+  const { data: signedPhotos } = photoPaths.length
+    ? await admin.storage.from("bill-photos").createSignedUrls(photoPaths, 600)
+    : { data: [] };
+  const signedByPath = new Map((signedPhotos ?? []).map((photo) => [photo.path, photo.signedUrl]));
+
+  const flagged = (flaggedRaw ?? []).map((b) => {
+    const household = b.households as unknown as { account_number: string | null; profiles: { household_label: string } };
+    return {
       ...b,
-      label: (b.households as unknown as { profiles: { household_label: string } }).profiles.household_label,
-      photoUrl: b.photo_path
-        ? (await admin.storage.from("bill-photos").createSignedUrl(b.photo_path, 600)).data?.signedUrl ?? null
-        : null,
-    })),
-  );
+      label: household.profiles.household_label,
+      accountNumber: household.account_number,
+      photoUrl: b.photo_path ? signedByPath.get(b.photo_path) ?? null : null,
+    };
+  });
+
+  const monthIds = board.month ? board.rows.map((r) => r.householdId) : [];
+  const { data: issuedRows, error: issuedError } =
+    board.month && monthIds.length
+      ? await admin.from("vouchers").select("household_id").eq("score_month", board.month).in("household_id", monthIds)
+      : { data: [], error: null };
+  if (issuedError) throw new Error(`Could not load issued vouchers: ${issuedError.message}`);
+  const alreadyIssued = new Set((issuedRows ?? []).map((v) => v.household_id));
+  const nextWinners = board.rows.filter((r) => r.score > 0 && !alreadyIssued.has(r.householdId)).slice(0, 3);
+
+  const sourceLabel = (servedBy: string | null) => {
+    if (!servedBy) return "Typed by the resident";
+    if (servedBy === "manual") return "Typed by the resident";
+    if (servedBy === "demo-seed") return "Demo data";
+    // Chain steps are named "<provider>:<model>", e.g. gemini:… or groq:… (see extract.ts).
+    const [, ...model] = servedBy.split(":");
+    return model.length ? `AI scan · ${model.join(":")}` : servedBy;
+  };
 
   return (
     <div className="mx-auto min-h-dvh max-w-240">
@@ -85,14 +113,28 @@ export default async function AdminPage() {
                       {b.baseline_kwh !== null && ` · last year ${kwh(Number(b.baseline_kwh))}`}
                     </p>
                   </div>
+                  {b.accountNumber && (
+                    <p className="num mt-1 text-small text-muted">Account ····{b.accountNumber.slice(-4)}</p>
+                  )}
                   <ul className="mt-2 list-disc pl-5 text-small text-warning">
                     {b.flag_reasons.map((r: string) => (
                       <li key={r}>{r}</li>
                     ))}
                   </ul>
+                  <p className="mt-1 text-small text-muted">Source: {sourceLabel(b.served_by)}</p>
                   {b.photoUrl ? (
-                    <a href={b.photoUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-small font-semibold text-primary underline">
-                      Open bill photo
+                    <a href={b.photoUrl} target="_blank" rel="noreferrer" className="mt-2 block">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from storage */}
+                      <img
+                        src={b.photoUrl}
+                        alt={`Bill photo for ${b.label}`}
+                        className="mt-1 max-h-64 w-full object-contain"
+                      />
+                      <span className="mt-1 inline-flex items-center gap-1 text-small font-semibold text-primary underline">
+                        Open full size
+                        <ExternalLink size={12} aria-hidden />
+                        <span className="sr-only">(opens in a new tab)</span>
+                      </span>
                     </a>
                   ) : (
                     <p className="mt-2 text-small text-muted">Typed in by hand, no photo.</p>
@@ -181,6 +223,16 @@ export default async function AdminPage() {
                 ? `${monthLabel(board.month)}: ${board.rows.length} household${board.rows.length === 1 ? "" : "s"} ranked. Vouchers go to the highest scores that don't have one yet.`
                 : "No scored bills yet."}
             </p>
+            {board.month && (
+              <div className="mb-3 rounded-sm bg-surface-2 px-3 py-2 text-small">
+                <p className="font-semibold">Next in line (up to 3)</p>
+                <p className="mt-0.5 text-muted">
+                  {nextWinners.length
+                    ? nextWinners.map((w) => `${w.label} (${pct(w.score)})`).join(", ")
+                    : "Everyone ranked this month already has a voucher."}
+                </p>
+              </div>
+            )}
             {stores.length > 0 ? (
               <ValidatedForm action={issueVouchers} schema="vouchers">
                 <SelectField label="Store" name="store_id" required>

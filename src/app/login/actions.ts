@@ -150,7 +150,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   redirect(signedIn ? "/" : "/login");
 }
 
-export async function signOut(): Promise<FormState> {
+export async function signOut(): Promise<void> {
   const supabase = await createUserClient();
   await supabase.auth.signOut();
   redirect("/login");

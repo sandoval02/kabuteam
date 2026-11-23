@@ -55,7 +55,7 @@ async function enterBill(page, { account, kwh, amount, baseline }) {
   await page.getByLabel("Same month last year (kWh)").fill(String(baseline));
   await page.getByRole("button", { name: "Save bill" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Save bill" }).click();
-  await page.waitForURL(/\/home/);
+  await page.getByRole("article", { name: "Itemized receipt" }).waitFor();
 }
 
 const browser = await chromium.launch({ channel: "msedge", headless: true });
@@ -90,17 +90,19 @@ try {
   createdUsers.push(aUser.users.find((u) => u.email === email("a")).id);
 
   await enterBill(a, { account: `11${run.slice(-8).replace(/\D/g, "7").padStart(8, "1")}`, kwh: 117, amount: 1469.52, baseline: 150 });
-  await a.locator("[data-sonner-toast]", { hasText: "Bill saved. You're on this month" }).first().waitFor();
+  await a.locator("[data-sonner-toast]", { hasText: "Bill saved. Here's your receipt." }).first().waitFor();
   assert.ok(await a.getByText("22% less than last year").first().isVisible());
   ok("approved bill scored 22% saved");
 
   step("Resident A adds appliances; receipt itemizes");
-  await a.goto(`${BASE}/scan#appliances`);
+  await a.goto(`${BASE}/scan`);
+  await a.getByRole("tab", { name: /Appliances/ }).click();
   await a.getByLabel("Appliance", { exact: true }).selectOption("aircon");
   await a.getByLabel("Hours a day").fill("2");
   await a.getByLabel("Inverter?").selectOption("no");
   await a.getByRole("button", { name: "Add appliance" }).click();
   await a.getByText("Aircon added.").waitFor();
+  await a.getByRole("tab", { name: /Appliances/ }).click();
   await a.getByLabel("Appliance", { exact: true }).selectOption("electric_fan");
   await a.getByRole("button", { name: "Add appliance" }).click();
   await a.getByText("Electric fan added.").waitFor();
@@ -125,6 +127,39 @@ try {
   } else {
     console.log("  ! all AI steps failed (quota?), manual form would be shown");
   }
+
+  step("Camera scan API reads a bill photo with Gemini");
+  const billPhoto = readFileSync("scripts/fixtures/sample-bill.jpg");
+  const billRes = await a.request.post(`${BASE}/api/extract/bill`, {
+    multipart: { photo: { name: "bill.jpg", mimeType: "image/jpeg", buffer: billPhoto } },
+  });
+  const billBody = await billRes.json();
+  assert.equal(billRes.status(), 200, JSON.stringify(billBody));
+  if (billBody.data.photoPath) await admin.storage.from("bill-photos").remove([billBody.data.photoPath]);
+  if (billBody.data.extraction) {
+    const extracted = billBody.data.extraction;
+    assert.ok(extracted.readable);
+    assert.ok(String(extracted.account_number).replace(/\D/g, "").endsWith("3123456789"));
+    assert.ok(Math.abs(extracted.kwh - 117) < 1);
+    assert.ok(Math.abs(extracted.amount_due - 1469.52) < 1);
+    assert.ok(extracted.history.length >= 12);
+    ok(`bill read by ${billBody.data.servedBy}`);
+  } else {
+    console.log("  ! bill AI steps failed (quota?), manual form would be shown");
+  }
+
+  step("The hourly scan limit stops the 21st request");
+  const { data: allUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const aId = allUsers.users.find((u) => u.email === email("a")).id;
+  // One sticker scan and one bill scan already used two of the twenty attempts.
+  await admin.from("extraction_attempts").insert(
+    Array.from({ length: 18 }, () => ({ profile_id: aId, kind: "appliance" })),
+  );
+  const limited = await a.request.post(`${BASE}/api/extract/appliance`, {
+    multipart: { photo: { name: "sticker.jpg", mimeType: "image/jpeg", buffer: sticker } },
+  });
+  assert.equal(limited.status(), 429);
+  ok("21st scan in an hour is rejected");
 
   step("Resident B (big house) and C (suspicious bill)");
   await makeUser("b");
@@ -239,11 +274,36 @@ try {
   await s.getByText(/Already used on/).waitFor();
   ok("second redeem rejected");
 
+  step("Profile name and theme persist");
+  await a.goto(`${BASE}/profile`);
+  await a.getByRole("textbox", { name: "Name" }).fill("Mang Jun");
+  await a.getByRole("button", { name: "Save name" }).click();
+  await a.locator("[data-sonner-toast]", { hasText: "Name saved." }).first().waitFor();
+  await a.reload();
+  await a.getByRole("heading", { name: "Mang Jun" }).waitFor();
+  const appearance = a.getByRole("radiogroup", { name: "Theme" }).last();
+  await appearance.getByRole("radio", { name: "Dark" }).click();
+  await a.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+  await a.waitForTimeout(400);
+  await a.reload();
+  await a.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+  await appearance.getByRole("radio", { name: "System" }).click();
+  await a.waitForFunction(() => !document.documentElement.dataset.theme);
+  ok("name and theme survive a reload");
+
   step("Roles are enforced");
   await a.goto(`${BASE}/admin`);
   // The loading shell streams first; the server redirect lands on /home after hydration.
   await a.waitForURL((u) => !u.pathname.startsWith("/admin"));
   ok("resident cannot open /admin");
+
+  step("Sign out");
+  await a.goto(`${BASE}/home`);
+  await a.getByRole("button", { name: "Open account menu" }).click();
+  await a.getByRole("button", { name: "Sign out" }).click();
+  await a.getByRole("dialog").getByRole("button", { name: "Sign out" }).click();
+  await a.waitForURL(/\/login/);
+  ok("sign out returns to login");
 
   if (consoleErrors.length) throw new Error(`Console errors:\n${consoleErrors.join("\n")}`);
   ok("no console errors");

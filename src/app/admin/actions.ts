@@ -29,7 +29,7 @@ export async function reviewBill(_: ActionState, form: FormData): Promise<Action
   const admin = createAdminClient();
   const { data: bill, error: billError } = await admin
     .from("bills")
-    .select("id, baseline_kwh, status, households(profiles(barangay_id))")
+    .select("id, baseline_kwh, status, flag_reasons, households(profiles(barangay_id))")
     .eq("id", parsed.data.id)
     .single();
   if (billError) return { error: "Could not load that bill. Try again." };
@@ -41,7 +41,22 @@ export async function reviewBill(_: ActionState, form: FormData): Promise<Action
     await admin.from("bills").update({ status: "rejected" }).eq("id", bill.id);
   } else {
     await admin.from("bills").update({ status: "approved" }).eq("id", bill.id);
-    await scoreBill(bill.id, bill.baseline_kwh === null ? null : Number(bill.baseline_kwh));
+    try {
+      await scoreBill(bill.id, bill.baseline_kwh === null ? null : Number(bill.baseline_kwh));
+    } catch (scoreError) {
+      // Put it back in the queue instead of leaving an approved bill with no score.
+      console.error("[reviewBill] score", scoreError);
+      await admin.from("scores").delete().eq("bill_id", bill.id);
+      await admin
+        .from("bills")
+        .update({
+          status: "flagged",
+          flag_reasons: [...(bill.flag_reasons ?? []), "Scoring failed when approved; try again."],
+        })
+        .eq("id", bill.id);
+      revalidatePath("/", "layout");
+      return { error: "Could not score this bill. It stays in the review queue; try again." };
+    }
   }
   // The reviewed card leaves the queue, so report the result at page level.
   revalidatePath("/", "layout");

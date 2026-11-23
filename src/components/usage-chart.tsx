@@ -30,7 +30,7 @@ export function UsageChart({ history, month, kwh }: { history: HistoryEntry[]; m
           const isLastYear = m === lastYear;
           return (
             <div key={m} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
-              {(isNow || isLastYear) && v !== null && <span className="num text-[0.7rem] font-semibold">{Math.round(v)}</span>}
+              {(isNow || isLastYear) && v !== null && <span className="num text-small font-semibold">{Math.round(v)}</span>}
               <div
                 className={`w-full rounded-t-[6px] ${isNow ? "bg-primary" : isLastYear ? "bg-green" : "bg-green/25"}`}
                 style={{ height: v === null ? 2 : `${Math.max(4, (v / max) * 100)}%` }}
@@ -39,7 +39,7 @@ export function UsageChart({ history, month, kwh }: { history: HistoryEntry[]; m
           );
         })}
       </div>
-      <div className="mt-1 flex gap-1.5 text-center text-[0.65rem] text-muted" aria-hidden>
+      <div className="mt-1 flex gap-1.5 text-center text-small text-muted" aria-hidden>
         {bars.map(({ m }, i) => (
           <span key={m} className="flex-1">
             {i % 3 === 0 || m === month ? short(m) : ""}

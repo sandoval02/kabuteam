@@ -6,6 +6,8 @@ import { getLeaderboard, monthLabel } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/server";
 import { buttonStyles, pct, peso } from "@/components/ui";
 
+export const metadata = { title: "Vouchers · Kuryentipid" };
+
 export default async function VouchersPage() {
   const viewer = await requireViewer("resident");
   const board = await getLeaderboard(viewer.barangayId);

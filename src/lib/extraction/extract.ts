@@ -19,7 +19,7 @@ export type ExtractResult<T> =
 export type Step = { name: string; run: (img: Image, prompt: string, jsonSchema: object) => Promise<string> };
 export type ProviderConfig = { preset: PresetKey; base_url: string | null; model: string; api_key: string };
 
-export const TIMEOUT_MS = 20_000;
+export const TIMEOUT_MS = 15_000;
 
 export class BadInputError extends Error {}
 

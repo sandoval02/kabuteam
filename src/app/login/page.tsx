@@ -12,6 +12,8 @@ const COPY = {
   up: { title: "Create your account", sub: "Households, sari-sari stores and barangay admins all sign up here." },
 };
 
+export const metadata = { title: "Sign in · Kuryentipid" };
+
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ mode?: string; role?: string }> }) {
   if (await getViewer()) redirect("/");
   const params = await searchParams;

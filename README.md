@@ -112,7 +112,7 @@ No dependency gets added beyond this list without a written reason.
 | Styling | **Tailwind CSS** with tokens from `src/app/globals.css` (light + dark) | Fast to build; tokens enforce the design system |
 | UI components | Own small primitives in `components/ui.tsx`, `components/field.tsx` and `components/form.tsx` (Button, Field, Notice, Card, IconTile, Skeleton, ValidatedForm, ConfirmDialog) | Only a handful were needed; shadcn was allowed but not required |
 | Toasts | **sonner** | Accessible, dismissible success/error toasts without a custom live-region implementation |
-| Landing page interaction | **Motion** (fair-score slider springs); a sticky month strip that follows the section you read (IntersectionObserver, no library) | The homepage walks one billing month; Three.js and GSAP were removed with the old hero (2026-11-23) |
+| Landing page interaction | CSS height transitions (fair-score slider); a sticky month strip that follows the section you read (IntersectionObserver, no library) | The homepage walks one billing month; Three.js and GSAP were removed with the old hero (2026-11-23) |
 | Icons | **lucide-react** | One consistent SVG set |
 | QR | **qrcode** (generate); the store page uses the browser's native `BarcodeDetector` where available, with the typed 6-character code everywhere | No extra scanner dependency; the typed code always works |
 | Deployment | **Vercel** + Supabase cloud (free tiers) | Zero-config Next.js hosting |
@@ -120,11 +120,21 @@ No dependency gets added beyond this list without a written reason.
 
 ## Screenshots
 
-| Home (light) | Home (dark) | Avatar menu | Profile |
-|---|---|---|---|
-| ![Home dashboard, light](docs/screenshots/home-light.png) | ![Home dashboard, dark](docs/screenshots/home-dark.png) | ![Avatar menu with theme switch](docs/screenshots/avatar-menu.png) | ![Profile page](docs/screenshots/profile-dark.png) |
+| Home (light) | Home (dark) | Avatar menu |
+|---|---|---|
+| ![Home dashboard, light](docs/screenshots/home-light.png) | ![Home dashboard, dark](docs/screenshots/home-dark.png) | ![Avatar menu with theme switch](docs/screenshots/avatar-menu.png) |
+
+| Receipt | Ranking | Vouchers |
+|---|---|---|
+| ![Itemized receipt with Unaccounted line](docs/screenshots/receipt.png) | ![Barangay ranking by fair score](docs/screenshots/ranking.png) | ![Voucher QR and fallback code](docs/screenshots/vouchers.png) |
+
+| Store redeem | Admin review | Profile |
+|---|---|---|
+| ![Store voucher redemption](docs/screenshots/store.png) | ![Admin flagged-bill review](docs/screenshots/admin.png) | ![Profile page](docs/screenshots/profile-dark.png) |
 
 ![Landing page](docs/screenshots/landing.png)
+
+Screens show a temporary "San Isidro" example barangay with representative demo data.
 
 ## 4. Getting started
 

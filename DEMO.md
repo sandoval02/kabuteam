@@ -21,7 +21,7 @@
 | 1:40 | "Aling Nena scans it. Accepted. Try again: already used." | Store phone → redeem, then redeem the same code again. |
 | 1:50 | "Fair, verified, local. SDG 7, one barangay at a time." | End on the landing page. |
 
-**If a judge asks "a bill is monthly, what about daily?"** Resident phone → **Scan → Room check → Start camera**, point it at a lamp or TV that is on with nobody in view, **Check now**: the phone says "Checking the room", then reads out "May naiwang bukas, walang tao" with the ₱ per hour from Mang Jun's own bill. Turn the volume up first. Then the roadmap slide. (Needs a saved bill for the pesos; uses one of the 20 AI reads per hour.)
+**If a judge asks "a bill is monthly, what about daily?"** Resident phone → **Scan → Room check → Start camera**, point it at a lamp or TV that is on with nobody in view, **Check now**: the phone says "Checking the room", then reads out "May naiwang bukas, walang tao" with the ₱ per hour from Mang Jun's own bill. Switch it off, then tap **Naayos na ito** (or **Check now** again) to show the alert turn into **Naayos na.** Turn the volume up first. Then the roadmap slide. (Needs a saved bill for the pesos; uses one of the 20 AI reads per hour.)
 
 **If a step fails live:** scanning falls back to typing the numbers (show that as a feature: "the AI suggests, the resident confirms"). The flagged bill (Bahay #068, ₱3/kWh) is already waiting in the admin queue if you need to show the review step.
 

@@ -38,17 +38,18 @@
   6. Negative: submitting a stale "Record payment" when nothing is unpaid → "Nothing to pay"; another store can't answer this payout; a resident reads no payouts; two simultaneous recordings pay the vouchers once.
 - Room check (on a real phone over HTTPS, light and dark):
   1. Scan → Room check → Start camera → allow → the rear camera shows. Check now with a TV or lamp on and nobody in view → "May naiwang bukas, walang tao" with ₱ per hour; with a person in view → "Someone is in the room"; everything off → "All clear".
-  2. No bill saved yet → watts only and "Save a bill to see what this costs in pesos".
-  3. Type 1 in "Auto-check every (minutes)" → the countdown starts at 1:00 with the cap warning, and a check runs by itself after a minute; 0, 61 or 1.5 show "Use a whole number from 1 to 60."; clearing the field turns auto-check off.
-  4. Home → the Room check quick action (and Get started → Check a room on a new account) opens the Room check tab; on a receipt with a big Unaccounted share, the warning links to it.
-  5. Switch to the Bill tab, or lock the phone → the camera light goes off; coming back shows Start camera.
-  6. Deny the camera permission → a Notice explains how to allow it, and "Check a photo instead" still works.
-  7. Use up the hourly cap during auto-check → the limit message says "Auto-check is off." and no more requests are sent.
-  8. Storage and the database hold no room photo afterwards.
-  9. Voice on: "Checking the room", then the result in Taglish with pesos in words; with auto-check, it speaks again each time. Untick "Speak the result" → silent. On iPhone, tap Check now once first (Safari only starts speech after a tap).
+  2. A left-on alert appears in **Alerts this visit** as **Bukas pa** (warning); tap **Naayos na ito** → the row says **Naayos na** (success), and the latest result becomes "Naayos na." with the device rows and ₱/h hidden. With the appliance switched off, the next readable check (tap Check now, or let auto-check run) resolves it by itself. An unreadable check resolves nothing.
+  3. No bill saved yet → watts only and "Save a bill to see what this costs in pesos".
+  4. Type 1 in "Auto-check every (minutes)" → the countdown starts at 1:00 with the cap warning, and a check runs by itself after a minute; 0, 61 or 1.5 show "Use a whole number from 1 to 60."; clearing the field turns auto-check off.
+  5. Home → the Room check quick action (and Get started → Check a room on a new account) opens the Room check tab; on a receipt with a big Unaccounted share, the warning links to it.
+  6. Switch to the Bill tab, or lock the phone → the camera light goes off; coming back shows Start camera.
+  7. Deny the camera permission → a Notice explains how to allow it, and "Check a photo instead" still works.
+  8. Use up the hourly cap during auto-check → the limit message says "Auto-check is off." and no more requests are sent.
+  9. Storage and the database hold no room photo afterwards.
+  10. Voice on: "Checking the room", then the result in Taglish with pesos in words; with auto-check, it speaks again each time. Untick "Speak the result" → silent. On iPhone, tap Check now once first (Safari only starts speech after a tap).
 - Monthly voucher budget: set it so ₱155 is left; issue 3 × ₱50 → works; issue 1 × ₱10 → blocked with the amount left; clear the budget → issuing works again. A fully used budget disables Issue and shows a notice.
 
 ## Automated tests
 
-- `npm test`: scoring rules (baseline, fair score, cap, low-usage floor, reconciliation including small gaps, badge eligibility, plausibility, swap tips).
+- `npm test`: scoring rules (baseline, fair score, cap, low-usage floor, reconciliation including small gaps, badge eligibility, plausibility, swap tips) and Room check alert resolution.
 - `npm run e2e`: with `npm run dev` running, drives Microsoft Edge through the whole demo loop with throwaway accounts (landing and the month strip, sign-up with the consent check, bill entry, appliances, receipt, real Gemini bill and sticker scans, Room check through Edge's fake camera (a real AI verdict, camera off after a tab change, 403 for a store account), the hourly scan cap shared with room checks, flagging, ranking order, a forged Google token being refused, store self sign-up → pending → admin approval, admin sign-up with a wrong and a right access code, an AI provider test with a bad key, admin review, vouchers, single-use redeem, profile name and theme persistence, sign out, role checks) and fails on console errors. Deletes its accounts afterwards. It needs `ADMIN_SIGNUP_CODE` in `.env.local`; Google's script logs a console error (and the run fails) until `http://localhost` and `http://localhost:3000` are Authorized JavaScript origins of the Google client.

@@ -96,7 +96,7 @@ One barangay, its own partner sari-sari stores, its own budget. Vouchers keep th
 | **Sign-up by role** | Household, Sari-sari store (waits for the admin's approval before it can receive vouchers) or Barangay admin (needs the admin access code). Email + password or Google. Privacy consent (Data Privacy Act, RA 10173) is required. A failed sign-in says whether the email isn't registered, uses Google, or has the wrong password. |
 | **Scan the bill** | AI extraction of every bill field and the usage chart; manual entry always available; live "₱ per kWh" check. |
 | **Scan appliances** | Rating-sticker photo → type and watts; inverter detection; hours per day. |
-| **Room check** | Third tab on Scan (`/scan#room`): live rear camera with **Check now** and an optional auto-check every 1 to 60 minutes (the resident types the number), or a single photo. Says what is left on with nobody in the room, each device's watts and ₱ per hour (from the latest bill's rate; watts from the household's own appliance of that type, else a typical value), and keeps a list of this visit's checks. A voice says "Checking the room" and then reads the result aloud in Taglish (the browser's own speech, Filipino voice where the phone has one; "Speak the result" turns it off). Energy only. Photos are never stored; the camera turns off when the tab or page is left. Shares the 20-per-hour AI cap. Reachable from Home (quick action and Get started), from the receipt's Unaccounted warning, and described on the homepage. |
+| **Room check** | Third tab on Scan (`/scan#room`): live rear camera with **Check now** and an optional auto-check every 1 to 60 minutes (the resident types the number), or a single photo. Says what is left on with nobody in the room, each device's watts and ₱ per hour (from the latest bill's rate; watts from the household's own appliance of that type, else a typical value), and keeps an **Alerts this visit** list of left-on alerts, each **Bukas pa** or **Naayos na**. **Naayos na ito** on an open alert resolves it, and it also resolves by itself when the next readable check no longer sees the device. A voice says "Checking the room" and then reads the result aloud in Taglish (the browser's own speech, Filipino voice where the phone has one; "Speak the result" turns it off). Energy only. Photos are never stored; the camera turns off when the tab or page is left. Shares the 20-per-hour AI cap. Reachable from Home (quick action and Get started), from the receipt's Unaccounted warning, and described on the homepage. |
 | **Itemized receipt** | Per-appliance kWh and ₱, reconciled to the bill, sorted by cost, Unaccounted line, top-3 swap tips with monthly saving and payback months. |
 | **Ranking** | Monthly barangay ranking by fair score, showing both score and actual % saved; your row stays pinned while you scroll. |
 | **Badges** | First Scan, 10% Club, Efficient Already, Top 3. |
@@ -246,7 +246,7 @@ Add the same variables in **Vercel → Project → Settings → Environment Vari
 ## 10. Testing
 
 ```bash
-npm test        # scoring rules: baseline, fair score, cap, low-usage floor, reconciliation, badges, plausibility, swap tips
+npm test        # scoring rules: baseline, fair score, cap, low-usage floor, reconciliation, badges, plausibility, swap tips; Room check alert resolution
 npm run e2e     # with `npm run dev` running: the whole loop in Microsoft Edge with throwaway accounts
 npm run lint
 npm run build

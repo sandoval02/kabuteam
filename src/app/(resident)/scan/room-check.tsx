@@ -4,10 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } fro
 import { Camera, ScanLine } from "lucide-react";
 import { PhotoCapture, postPhoto } from "@/components/photo-capture";
 import { Button, CheckField, Field, Notice, peso } from "@/components/ui";
-
-type Device = { type: string; label: string; watts: number; pesosPerHour: number | null };
-type Check = { readable: boolean; peoplePresent: boolean; waste: boolean; observation: string; devices: Device[] };
-type Entry = Check & { at: number };
+import { costPerHour, deviceLabels, resolveAlerts, verdict, type RoomCheck, type RoomEntry } from "@/lib/room-check";
 
 const MINUTE = 60_000;
 // The server's 20-per-hour AI cap is the real limit; below 3 minutes it runs out before the hour does.
@@ -31,18 +28,6 @@ function cameraError(err: unknown): string {
   return "The camera could not start. Check a photo instead.";
 }
 
-/** Pesos per hour for everything on, or null when there is no bill rate yet. */
-const costPerHour = (c: Check) =>
-  c.devices.length && c.devices[0].pesosPerHour !== null ? c.devices.reduce((sum, d) => sum + (d.pesosPerHour ?? 0), 0) : null;
-
-function verdict(c: Check): { tone: "success" | "warning" | "info"; title: string; short: string } {
-  if (!c.readable) return { tone: "warning", title: "Hindi malinaw. Hold the phone steady with the room in view, then check again.", short: "Unclear" };
-  const names = [...new Set(c.devices.map((d) => d.label))].join(", ");
-  if (c.waste) return { tone: "warning", title: `May naiwang bukas, walang tao: ${names}.`, short: `${names} on, walang tao` };
-  if (c.devices.length) return { tone: "info", title: "Someone is in the room, so nothing is wasted.", short: "Someone's there" };
-  return { tone: "success", title: "All clear. Walang naiwang bukas.", short: "All clear" };
-}
-
 /** ₱1.26 read aloud: "1 piso at 26 sentimo". */
 function spokenPeso(n: number) {
   const cents = Math.round(n * 100);
@@ -51,7 +36,7 @@ function spokenPeso(n: number) {
 }
 
 /** What the voice says: the on-screen verdict, with the cost in words. */
-function spoken(c: Check) {
+function spoken(c: RoomCheck) {
   const cost = costPerHour(c);
   return `${verdict(c).title}${c.waste && cost !== null ? ` ${spokenPeso(cost)} kada oras.` : ""}`;
 }
@@ -81,7 +66,7 @@ export function RoomCheck() {
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checks, setChecks] = useState<Entry[]>([]); // this visit only, newest first
+  const [checks, setChecks] = useState<RoomEntry[]>([]); // this visit only, newest first
   const [voice, setVoice] = useState(true); // read "Checking the room." and each result aloud
   const [minutesText, setMinutesText] = useState(""); // auto-check interval as typed; empty = off
   const auto = toMinutes(minutesText);
@@ -131,7 +116,7 @@ export function RoomCheck() {
     // Spoken before any await, so a tap on Check now also unlocks the voice on phones that need a tap first.
     if (voice) say("Checking the room.");
     setNextAt(auto && stream ? Date.now() + auto * MINUTE : null);
-    const { data, error } = await postPhoto<{ check: Check | null }>("/api/extract/room", source);
+    const { data, error } = await postPhoto<{ check: RoomCheck | null }>("/api/extract/room", source);
     setChecking(false);
     const check = data?.check;
     if (!check) {
@@ -143,8 +128,14 @@ export function RoomCheck() {
       setNextAt(null);
       return;
     }
-    setChecks((prev) => [{ ...check, at: Date.now() }, ...prev].slice(0, 10));
+    const at = Date.now();
+    setChecks((prev) => [{ ...check, at, resolved: false }, ...resolveAlerts(prev, check)].slice(0, 10));
     if (voice) say(spoken(check));
+  }
+
+  function resolveAlert(at: number) {
+    setChecks((prev) => prev.map((entry) => (entry.at === at && !entry.resolved ? { ...entry, resolved: true } : entry)));
+    if (voice) say("Naayos na.");
   }
 
   // Every second while the camera is on: countdown and due auto-checks. Leaving the tab or the page turns the camera off.
@@ -166,7 +157,41 @@ export function RoomCheck() {
   }, [stream]);
 
   const live = stream !== null;
-  const result = checks[0] && <Result check={checks[0]} />;
+  const result = checks[0] && <Result entry={checks[0]} />;
+  const alerts = checks.filter((c) => c.waste);
+  const alertList = alerts.length > 0 && (
+    <div>
+      <h3 className="mb-1 text-small font-semibold">Alerts this visit</h3>
+      <ul className="divide-y divide-border text-small">
+        {alerts.map((c) => {
+          const resolved = c.resolved;
+          const names = deviceLabels(c);
+          return (
+            <li key={c.at} className="flex items-center justify-between gap-3 py-2">
+              <div className="min-w-0">
+                <p className="font-semibold">{names}</p>
+                <p className="text-muted">
+                  <span className="num">{clock(c.at)}</span> ·{" "}
+                  <span className={resolved ? "text-success" : "text-warning"}>{resolved ? "Naayos na" : "Bukas pa"}</span>
+                </p>
+              </div>
+              {!resolved && (
+                <Button
+                  variant="secondary"
+                  type="button"
+                  className="shrink-0"
+                  aria-label={`Naayos na: ${names}, ${clock(c.at)}`}
+                  onClick={() => resolveAlert(c.at)}
+                >
+                  Naayos na ito
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
   const voiceToggle = (
     <CheckField
       label="Speak the result"
@@ -216,6 +241,7 @@ export function RoomCheck() {
             {checking ? "Checking…" : "Check now"}
           </Button>
           {result}
+          {alertList}
           <Field
             label="Auto-check every (minutes)"
             name="room-auto"
@@ -263,40 +289,23 @@ export function RoomCheck() {
           />
           {voiceToggle}
           {result}
+          {alertList}
         </>
-      )}
-
-      {checks.length > 1 && (
-        <div>
-          <h3 className="mb-1 text-small font-semibold">Earlier checks</h3>
-          <ul className="divide-y divide-border text-small">
-            {checks.slice(1).map((c) => {
-              const cost = c.waste ? costPerHour(c) : null;
-              return (
-                <li key={c.at} className="flex items-center justify-between gap-3 py-2">
-                  <span>
-                    <span className="num text-muted">{clock(c.at)}</span> {verdict(c).short}
-                  </span>
-                  {cost !== null && <span className="num">{peso(cost)}/h</span>}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
       )}
     </div>
   );
 }
 
-function Result({ check }: { check: Check }) {
-  const v = verdict(check);
-  const cost = costPerHour(check);
+function Result({ entry }: { entry: RoomEntry }) {
+  const v = verdict(entry);
+  const cost = costPerHour(entry);
+  const open = entry.waste && !entry.resolved;
   return (
     <div className="flex flex-col gap-2">
       <Notice tone={v.tone}>
         <span className="block font-semibold">{v.title}</span>
-        {check.readable && check.observation && <span className="block">{check.observation}</span>}
-        {check.waste && (
+        {entry.readable && !entry.resolved && entry.observation && <span className="block">{entry.observation}</span>}
+        {open && (
           <span className="block">
             {cost === null ? (
               "Save a bill to see what this costs in pesos."
@@ -308,9 +317,9 @@ function Result({ check }: { check: Check }) {
           </span>
         )}
       </Notice>
-      {check.devices.length > 0 && (
+      {!entry.resolved && entry.devices.length > 0 && (
         <ul className="divide-y divide-border">
-          {check.devices.map((d, i) => (
+          {entry.devices.map((d, i) => (
             <li key={i} className="flex items-center justify-between gap-3 py-2">
               <span className="font-semibold">{d.label}</span>
               <span className="num text-small text-muted">

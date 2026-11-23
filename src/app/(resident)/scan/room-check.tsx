@@ -3,7 +3,7 @@
 import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
 import { Camera, ScanLine } from "lucide-react";
 import { PhotoCapture, postPhoto } from "@/components/photo-capture";
-import { Button, Field, Notice, peso } from "@/components/ui";
+import { Button, CheckField, Field, Notice, peso } from "@/components/ui";
 
 type Device = { type: string; label: string; watts: number; pesosPerHour: number | null };
 type Check = { readable: boolean; peoplePresent: boolean; waste: boolean; observation: string; devices: Device[] };
@@ -43,6 +43,28 @@ function verdict(c: Check): { tone: "success" | "warning" | "info"; title: strin
   return { tone: "success", title: "All clear. Walang naiwang bukas.", short: "All clear" };
 }
 
+/** ₱1.26 read aloud: "1 piso at 26 sentimo". */
+function spokenPeso(n: number) {
+  const cents = Math.round(n * 100);
+  const [pesos, centavos] = [Math.floor(cents / 100), cents % 100];
+  return [pesos && `${pesos} piso`, centavos && `${centavos} sentimo`].filter(Boolean).join(" at ") || "0 piso";
+}
+
+/** What the voice says: the on-screen verdict, with the cost in words. */
+function spoken(c: Check) {
+  const cost = costPerHour(c);
+  return `${verdict(c).title}${c.waste && cost !== null ? ` ${spokenPeso(cost)} kada oras.` : ""}`;
+}
+
+/** Reads text aloud with the browser's own voice (Filipino where the phone has one); a new line cuts off the last. */
+function say(text: string) {
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const line = new SpeechSynthesisUtterance(text);
+  line.lang = "fil-PH";
+  speechSynthesis.speak(line);
+}
+
 const clock = (at: number) => new Date(at).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" });
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -60,6 +82,7 @@ export function RoomCheck() {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checks, setChecks] = useState<Entry[]>([]); // this visit only, newest first
+  const [voice, setVoice] = useState(true); // read "Checking the room." and each result aloud
   const [minutesText, setMinutesText] = useState(""); // auto-check interval as typed; empty = off
   const auto = toMinutes(minutesText);
   const [nextAt, setNextAt] = useState<number | null>(null);
@@ -67,6 +90,7 @@ export function RoomCheck() {
 
   // Stopping the tracks turns the camera off: when it is stopped, replaced, or this tab unmounts.
   useEffect(() => () => stream?.getTracks().forEach((t) => t.stop()), [stream]);
+  useEffect(() => () => window.speechSynthesis?.cancel(), []);
 
   function stopCamera() {
     setStream(null);
@@ -104,18 +128,23 @@ export function RoomCheck() {
     if (checking) return;
     setChecking(true);
     setError(null);
+    // Spoken before any await, so a tap on Check now also unlocks the voice on phones that need a tap first.
+    if (voice) say("Checking the room.");
     setNextAt(auto && stream ? Date.now() + auto * MINUTE : null);
     const { data, error } = await postPhoto<{ check: Check | null }>("/api/extract/room", source);
     setChecking(false);
     const check = data?.check;
     if (!check) {
       // Stop auto-check on any failure, so an hourly limit or outage is not hit again every few minutes.
-      setError(`${error ?? "Could not check the room right now. Try again in a few minutes."}${auto ? " Auto-check is off." : ""}`);
+      const message = `${error ?? "Could not check the room right now. Try again in a few minutes."}${auto ? " Auto-check is off." : ""}`;
+      setError(message);
+      if (voice) say(message);
       setMinutesText("");
       setNextAt(null);
       return;
     }
     setChecks((prev) => [{ ...check, at: Date.now() }, ...prev].slice(0, 10));
+    if (voice) say(spoken(check));
   }
 
   // Every second while the camera is on: countdown and due auto-checks. Leaving the tab or the page turns the camera off.
@@ -138,6 +167,17 @@ export function RoomCheck() {
 
   const live = stream !== null;
   const result = checks[0] && <Result check={checks[0]} />;
+  const voiceToggle = (
+    <CheckField
+      label="Speak the result"
+      name="room-voice"
+      checked={voice}
+      onChange={(e) => {
+        setVoice(e.target.checked);
+        if (!e.target.checked) window.speechSynthesis?.cancel();
+      }}
+    />
+  );
   const secondsLeft = nextAt && now ? Math.max(0, Math.ceil((nextAt - now) / 1000)) : null;
 
   return (
@@ -202,6 +242,7 @@ export function RoomCheck() {
                 : "Leave empty to check only when you tap. You get 20 AI checks an hour."
             }
           />
+          {voiceToggle}
           <Button variant="secondary" type="button" onClick={stopCamera}>
             Stop camera
           </Button>
@@ -220,6 +261,7 @@ export function RoomCheck() {
             disabled={starting || checking}
             onPhoto={(file) => runCheck(file)}
           />
+          {voiceToggle}
           {result}
         </>
       )}

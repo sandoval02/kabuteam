@@ -173,6 +173,11 @@ try {
   }
 
   step("Room check: live camera frame → AI verdict");
+  // Record what the voice says instead of playing it.
+  await a.addInitScript(() => {
+    window.__spoken = [];
+    speechSynthesis.speak = (line) => window.__spoken.push(line.text);
+  });
   await a.goto(`${BASE}/scan#room`);
   await a.getByRole("tab", { name: "Room check", selected: true }).waitFor();
   await a.getByText("never saved").waitFor();
@@ -182,6 +187,10 @@ try {
   const verdict = a.getByText(/All clear|May naiwang bukas|Someone is in the room|Hindi malinaw|Could not check the room/).first();
   await verdict.waitFor({ timeout: 90_000 });
   ok(`room check answered: "${await verdict.textContent()}"`);
+  const spokenLines = await a.evaluate(() => window.__spoken);
+  assert.equal(spokenLines[0], "Checking the room.");
+  assert.ok(spokenLines.length >= 2, JSON.stringify(spokenLines));
+  ok(`voice said "${spokenLines[0]}" then "${spokenLines.at(-1)}"`);
   const minutes = a.getByLabel("Auto-check every (minutes)");
   await minutes.fill("61");
   await a.getByText("Use a whole number from 1 to 60.").waitFor();

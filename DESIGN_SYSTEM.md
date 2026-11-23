@@ -144,7 +144,8 @@ Non-negotiable. Every visual element has a purpose; every interaction does somet
 - **Loading:** "Checking the room…" over the dimmed video (as the bill photo), buttons disabled.
 - **Error:** camera blocked, missing, busy or ended mid-use, AI failed, or hourly limit → warning Notice with the next step; a failure during auto-check also says "Auto-check is off."
 - **Success:** one Notice in an `aria-live` status: **left on, nobody there** (`warning`: "May naiwang bukas, walang tao: TV, Lights.", the AI's one-sentence observation, "₱1.39 kada oras habang bukas." with the amount in mono), **someone is there** (`info`), **all clear** (`success`), or **unclear** (`warning`, retake advice). Below it, one row per device: label left, "100 W · ₱1.26/h" right in mono. With no bill yet, "Save a bill to see what this costs in pesos." Earlier checks this visit: time (mono) + short verdict, up to 10.
-- **Motion:** none beyond the shared button press and the pulsing `ScanLine` while checking. No alarm sound, scan line or REC badge.
+- **Voice:** "Speak the result" checkbox (`CheckField`, on by default). Says "Checking the room." when a check starts, then the same words as the result Notice, with pesos in words ("1 piso at 39 sentimo kada oras."), or the error. Browser speech, `fil-PH`; a new line cuts off the last one. It is the result read aloud, not an alarm.
+- **Motion:** none beyond the shared button press and the pulsing `ScanLine` while checking. No alarm siren, scan line or REC badge.
 
 ### Receipt (resident)
 - **Primary:** see what costs the most. **Secondary:** open a swap tip; add a missed appliance.

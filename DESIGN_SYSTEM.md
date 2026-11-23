@@ -18,7 +18,7 @@
 
 ### Sizes (compact)
 
-Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding. Headings: display 28px, section 18px; amounts 24px (all before the 90% scale). Bottom nav 56px, floating pill.
+Buttons 40px tall, pill-shaped, 15px bold text. Inputs 40px. Cards 14px padding. Headings: display 28px, section 18px; amounts 24px (all before the 90% scale). Bottom nav 48px, floating pill.
 
 ### Color
 
@@ -42,7 +42,7 @@ QR codes stay dark-on-white so any phone camera can scan them. The "Continue wit
 | Body, UI | **Plus Jakarta Sans** (`--font-sans`) | |
 | Numbers, codes, receipt | **JetBrains Mono** (`.num`, `--font-mono`) | `tabular-nums` |
 
-Sizes: display 28/34, h2 18/24, body 16/26, small 14/20 (minimum), amount-lg 24/32. Wordmark: the logo mark (`public/logo.png`, house-shaped receipt on a white tile, 28px) then "Kuryen**tipid**" in Sora bold, "tipid" in lime. App icons: `src/app/icon.png`, `src/app/apple-icon.png`. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
+Sizes: display 28/34, h2 18/24, body 16/26, small 14/20 (minimum), amount-lg 24/32. Wordmark: on the landing page, the Kuryentipid lockup image (house + bolt + name, 48px tall): `public/logo-wordmark-light.png` (ink letters) in light mode, `public/logo-wordmark-dark.png` (white letters) in dark mode, swapped with the theme-aware `dark:` variant. Login uses the same lockup at 40px. The app header uses the mark alone (`public/logo.png`, 36px). App icons: `src/app/icon.png`, `src/app/apple-icon.png`. Impeccable flags Plus Jakarta Sans as overused; it's waived in `.impeccable/config.json` because it is Tugon's font.
 
 ### Spacing
 
@@ -95,7 +95,7 @@ Everything is disabled under `prefers-reduced-motion` (final state shown). Three
 
 ## Components
 
-Defined once in `src/components/ui.tsx`, `field.tsx` and `form.tsx`. Every interactive component has: default, hover, focus-visible, active, disabled, loading.
+Defined once in `src/components/ui/`. Every interactive component has: default, hover, focus-visible, active, disabled, loading.
 
 | Component | Spec |
 |---|---|
@@ -108,9 +108,10 @@ Defined once in `src/components/ui.tsx`, `field.tsx` and `form.tsx`. Every inter
 | **VoucherCard** | Big QR code, 6-character fallback code in mono, store name, amount, expiry. States: active, redeemed (greyed out with "Used on <date>"), expired. |
 | **Modal / bottom sheet** | Bottom sheet on mobile, centered modal ≥ md. Focus trapped, Esc and backdrop close, focus returns to trigger. |
 | **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
+| **Login / register** | `/login` and `/login?mode=up`. Wordmark lockup in the header, then two columns at `lg` (one column below, form first): left-aligned per-mode title + form card + privacy line; a lime panel with three steps (`ScanLine`, `ReceiptText`, `Trophy`) and the example `ReceiptPreview` captioned "Example". |
 | **Toast** | Bottom-center, 96px above the viewport edge so it clears the floating nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
 | **Skeleton** | Grey `--color-border` blocks matching the final layout, pulsing (still under reduced motion). Each nav page (Home, Scan, Ranking, Vouchers) has a `loading.tsx`, so a nav tap switches instantly to the skeleton; the tapped nav icon shows a spinner until the page arrives. |
-| **PageHero / CardSection** | The Profile layout, used on Profile, Scan, Ranking and Vouchers: a 96px lime circle (icon or avatar), centered display title and muted subtitle, then content in cards whose `font-semibold` heading (with optional 14px icon) sits inside the card. Login and register (`/login`, `/login?mode=up`) use PageHero with the house illustration as the visual and a per-mode title; Home follows it with a centered hero and card-wrapped content. |
+| **PageHero / CardSection** | The Profile layout, used on Profile only (Ranking and Vouchers open with a lime card of real numbers instead): a 96px lime circle (icon or avatar), centered display title and muted subtitle, then content in cards whose `font-semibold` heading (with optional 14px icon) sits inside the card. Home follows it with a centered hero and card-wrapped content. |
 
 ## Anti-slop rules
 
@@ -133,9 +134,10 @@ Non-negotiable. Every visual element has a purpose; every interaction does somet
 ### Scan (resident)
 - **Primary:** take a photo of the bill. **Secondary:** add appliance photos; enter manually.
 - **Loading:** "Reading your bill…" with the photo dimmed underneath; disable buttons.
-- **Empty:** first visit, one big PhotoCapture plus one line on what to photograph.
+- **Empty:** the bill form is always shown . Above it, one line on what to photograph and a lime "Take or upload bill photo" button (the appliance sticker button is lime too); a read fills the fields in, with the photo shown above them.
 - **Error:** unreadable photo → "Couldn't read this. Retake in better light, or type the numbers." with both actions. Failed rate check → "We'll ask the barangay to check this bill" (goes to review, not a dead end).
-- **Success:** extracted fields shown as an editable form; "Looks right" confirms.
+- **Success:** extracted fields shown as an editable form; "Save bill" confirms. Below kWh and amount, a live "That's ₱X per kWh" line (amount ÷ kWh); outside ₱8–₱20 it becomes a warning Notice, since the bill will go to barangay review.
+- **Layout:** no hero. Bill and Appliances are a segmented pill switch (`Tabs variant="segmented"`, active pill lime) that sticks under the app header while the form scrolls; `/scan#appliances` opens the Appliances tab.
 - **Mobile:** this *is* the mobile layout; on desktop, the same column centered.
 
 ### Receipt (resident)
@@ -151,6 +153,8 @@ Non-negotiable. Every visual element has a purpose; every interaction does somet
 - **Empty:** fewer than 2 households this month → "You're the first! Ranking starts when neighbors join." Not an empty table.
 - **Error:** "Couldn't load the ranking" + Retry.
 - **Success:** list with my row highlighted/pinned.
+- **Hero:** no icon. A lime card with my real standing: "#3 of 12 households", then fair score, % saved vs last year, and points behind the household above (or lead over #2 when first). Not on this month's ranking → the card says so and links to Scan.
+- **Loading (Ranking and Scan):** each `loading.tsx` mirrors its page's real layout (rank hero + rows; pill switch + bill form), like every other `loading.tsx` (Home, Vouchers, Profile).
 
 ### Vouchers (resident)
 - **Primary:** show QR at the store. **Secondary:** see used/expired.

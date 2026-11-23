@@ -16,13 +16,11 @@ import { requireViewer } from "@/lib/auth";
 import { APPLIANCE_TYPES, type ApplianceType } from "@/lib/extraction/schemas";
 import { getAppliances, getLatestBill, getLeaderboard, getScore, monthLabel } from "@/lib/data";
 import { UNACCOUNTED_THRESHOLD, daysInPeriod, reconcile, swapTip } from "@/lib/scoring";
-import { Notice, kwh, paybackText, peso, pct } from "@/components/ui";
+import { Notice, kwh, peso, pct } from "@/components/ui";
 import { UsageChart } from "@/components/usage-chart";
 import { Sparkline } from "@/components/sparkline";
 import { Tabs } from "@/components/tabs";
 import { ToastFromParam } from "@/components/form";
-
-export const metadata = { title: "Home · Kuryentipid" };
 
 const SAVED_TOASTS = {
   approved: { text: "Bill saved. You're on this month's barangay ranking." },
@@ -53,7 +51,24 @@ function Actions({ hasBill }: { hasBill: boolean }) {
 }
 
 /** One wallet-style list row: round icon, name + detail, value + sub-value on the right. */
-function Row({ icon: Icon, tone = "plain", title, detail, value, sub }: { icon: LucideIcon; tone?: "plain" | "warning"; title: string; detail: string; value: string; sub?: string }) {
+function Row({
+  icon: Icon,
+  tone = "plain",
+  title,
+  detail,
+  value,
+  sub,
+  share,
+}: {
+  icon: LucideIcon;
+  tone?: "plain" | "warning";
+  title: string;
+  detail: string;
+  value: string;
+  sub?: string;
+  /** Share of the bill, 0–1: shown as a chip next to `sub`. */
+  share?: number;
+}) {
   return (
     <li className="flex items-center gap-3 py-2.5">
       <span
@@ -63,12 +78,21 @@ function Row({ icon: Icon, tone = "plain", title, detail, value, sub }: { icon: 
         <Icon size={15} strokeWidth={1.75} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className={`block truncate font-semibold ${tone === "warning" ? "text-warning" : ""}`}>{title}</span>
+        <span className={`block truncate text-small font-semibold ${tone === "warning" ? "text-warning" : ""}`}>{title}</span>
         <span className="block text-small text-muted">{detail}</span>
       </span>
       <span className="shrink-0 text-right">
-        <span className="num block font-semibold">{value}</span>
-        {sub && <span className="num block text-small text-muted">{sub}</span>}
+        <span className="num block text-small font-semibold">{value}</span>
+        {(sub || share !== undefined) && (
+          <span className="mt-0.5 flex items-center justify-end gap-1.5 text-small">
+            {sub && <span className="num text-muted">{sub}</span>}
+            {share !== undefined && (
+              <span className={`num rounded-sm px-1.5 font-semibold ${tone === "warning" ? "bg-warning-bg text-warning" : "bg-lime text-on-lime"}`}>
+                {Math.round(share * 100)}%
+              </span>
+            )}
+          </span>
+        )}
       </span>
     </li>
   );
@@ -86,7 +110,6 @@ export default async function HomePage() {
     return (
       <>
         <ToastFromParam param="saved" messages={SAVED_TOASTS} />
-        <h1 className="sr-only">Home</h1>
         <section className="flex flex-col items-center pt-2 text-center">
           <p className="text-small text-muted">Your electric bill</p>
           <p className="num mt-0.5 text-[2.25rem] font-semibold leading-tight">₱—</p>
@@ -143,18 +166,30 @@ export default async function HomePage() {
   const trend = [...bill.history.map((h) => h.kwh), bill.kwh].slice(-13);
   const typeLabel = (t: string) => APPLIANCE_TYPES[t as ApplianceType]?.label ?? t;
 
-  const reasons = bill.flag_reasons.length ? ` ${bill.flag_reasons.join("; ")}.` : "";
-
   return (
     <>
       <ToastFromParam param="saved" messages={SAVED_TOASTS} />
-      <h1 className="sr-only">Home</h1>
       {bill.status !== "approved" && (
         <div className="mb-2">
           <Notice tone={bill.status === "flagged" ? "warning" : "error"}>
-            {bill.status === "flagged"
-              ? `The barangay will check this bill before it counts.${reasons}`
-              : `The barangay could not verify this bill, so it is not on the ranking.${reasons} You can scan a corrected bill for the same month.`}
+            {bill.status === "flagged" ? (
+              <details className="group">
+                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                  The barangay will check this bill before it counts.{" "}
+                  <span className="font-semibold underline underline-offset-4">
+                    <span className="group-open:hidden">Why? ({bill.flag_reasons.length})</span>
+                    <span className="hidden group-open:inline">Hide</span>
+                  </span>
+                </summary>
+                <ul className="mt-1.5 list-disc pl-4">
+                  {bill.flag_reasons.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : (
+              "The barangay could not verify this bill, so it is not on the ranking."
+            )}
           </Notice>
         </div>
       )}
@@ -179,7 +214,7 @@ export default async function HomePage() {
             )}
           </p>
         </div>
-        <Sparkline values={trend} className="h-12 w-28 shrink-0" />
+        <Sparkline values={trend} className="h-12 w-28 shrink-0 text-primary-bright" />
       </section>
 
       <Actions hasBill />
@@ -213,7 +248,8 @@ export default async function HomePage() {
                           title={l.label}
                           detail={`${typeLabel(l.type)} · ${l.hoursPerDay} h/day`}
                           value={peso(l.pesos)}
-                          sub={`${kwh(l.kwh)} · ${Math.round(l.share * 100)}%`}
+                          sub={kwh(l.kwh)}
+                          share={l.share}
                         />
                       ))}
                       {receipt.unaccounted && (
@@ -223,7 +259,8 @@ export default async function HomePage() {
                           title="Unaccounted"
                           detail="Not explained by your appliances"
                           value={peso(receipt.unaccounted.pesos)}
-                          sub={`${kwh(receipt.unaccounted.kwh)} · ${Math.round(receipt.unaccounted.share * 100)}%`}
+                          sub={kwh(receipt.unaccounted.kwh)}
+                          share={receipt.unaccounted.share}
                         />
                       )}
                     </ul>
@@ -247,7 +284,6 @@ export default async function HomePage() {
                 <ul className="divide-y divide-border">
                   {tips.map((t) => {
                     const line = receipt.lines.find((l) => l.id === t.lineId)!;
-                    const payback = paybackText(t.paybackMonths);
                     return (
                       <Row
                         key={t.lineId}
@@ -255,7 +291,7 @@ export default async function HomePage() {
                         title={line.label}
                         detail={t.text}
                         value={`${peso(t.monthlySaving)}/mo`}
-                        sub={payback ? `${payback} payback` : undefined}
+                        sub={t.paybackMonths !== null ? `${t.paybackMonths} mo payback` : undefined}
                       />
                     );
                   })}

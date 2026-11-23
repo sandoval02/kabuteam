@@ -47,14 +47,13 @@ async function login(page, who) {
 
 async function enterBill(page, { account, kwh, amount, baseline }) {
   await page.goto(`${BASE}/scan`);
-  await page.getByRole("button", { name: "Type it in instead" }).click();
   await page.getByLabel("Account number").fill(account);
   await page.getByLabel("Period start").fill("2026-09-15");
   await page.getByLabel("Period end").fill("2026-10-15");
   await page.getByLabel("kWh used").fill(String(kwh));
   await page.getByLabel("Amount due (₱)").fill(String(amount));
   await page.getByLabel("Same month last year (kWh)").fill(String(baseline));
-  await page.getByRole("button", { name: "Looks right, save" }).click();
+  await page.getByRole("button", { name: "Save bill" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Save bill" }).click();
   await page.getByRole("article", { name: "Itemized receipt" }).waitFor();
 }
@@ -93,12 +92,14 @@ try {
 
   step("Resident A adds appliances; receipt itemizes");
   await a.goto(`${BASE}/scan`);
-  await a.getByLabel("Appliance").selectOption("aircon");
+  await a.getByRole("tab", { name: /Appliances/ }).click();
+  await a.getByLabel("Appliance", { exact: true }).selectOption("aircon");
   await a.getByLabel("Hours a day").fill("2");
   await a.getByLabel("Inverter?").selectOption("no");
   await a.getByRole("button", { name: "Add appliance" }).click();
   await a.getByText("Aircon added.").waitFor();
-  await a.getByLabel("Appliance").selectOption("electric_fan");
+  await a.getByRole("tab", { name: /Appliances/ }).click();
+  await a.getByLabel("Appliance", { exact: true }).selectOption("electric_fan");
   await a.getByRole("button", { name: "Add appliance" }).click();
   await a.getByText("Electric fan added.").waitFor();
   await a.goto(`${BASE}/receipt`);
@@ -159,13 +160,14 @@ try {
   step("Admin adds a store, approves C, issues vouchers");
   await makeUser("store");
   await makeUser("admin", "admin");
+  const storeName = `Aling Nena Store ${run.slice(-4)}`;
   const ad = await newPage(browser);
   await login(ad, "admin");
   assert.match(ad.url(), /\/admin/);
-  await ad.getByLabel("Store name").fill("Aling Nena Store");
+  await ad.getByLabel("Store name").fill(storeName);
   await ad.getByLabel("Owner's account email").fill(email("store"));
   await ad.getByRole("button", { name: "Add store" }).click();
-  await ad.getByText("Aling Nena Store added.").waitFor();
+  await ad.getByText(`${storeName} added.`).waitFor();
   ok("store added");
   const cBill = ad.locator("li", { hasText: "Rate ₱1.67/kWh is outside" });
   await cBill.getByRole("button", { name: "Approve" }).click();
@@ -173,7 +175,7 @@ try {
   await ad.getByText("Bill approved and added to the ranking.").waitFor();
   ok("flagged bill approved");
   await ad.reload();
-  await ad.getByLabel("Store", { exact: true }).selectOption({ label: "Aling Nena Store" });
+  await ad.getByLabel("Store", { exact: true }).selectOption({ label: storeName });
   await ad.getByLabel("Vouchers").fill("2");
   await ad.getByRole("button", { name: "Issue vouchers" }).click();
   await ad.getByRole("dialog").getByRole("button", { name: "Issue vouchers" }).click();

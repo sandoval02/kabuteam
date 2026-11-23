@@ -40,17 +40,20 @@ Photos are read by a **chain of models tried in order**. The first one that retu
 ```
 1. gemini-3.5-flash-lite  (free: 15 RPM, 500/day)
 2. gemini-3.1-flash-lite  (free: 15 RPM, 500/day, separate quota)
-3. gemini-3.8-flash       (free: 5 RPM, 20/day: strongest free model, kept as the accuracy backstop)
-4. Claude Haiku 5.5       (only if ANTHROPIC_API_KEY is set, paid, ~₱0.03/scan)
-5. Providers the admin added on /admin, oldest first (OpenAI-compatible, Claude or Gemini)
-6. Manual entry form      (always)
+3. gemini-3.5-flash       (Flash models, free: 5 RPM, 20/day each, separate quotas)
+4. gemini-3.6-flash
+5. gemini-3.8-flash
+6. gemini-3.7-flash
+7. Claude Haiku 5.5       (only if ANTHROPIC_API_KEY is set, paid, ~₱0.03/scan)
+8. Providers the admin added on /admin, oldest first (OpenAI-compatible, Claude or Gemini)
+9. Manual entry form      (always)
 ```
 
-Limits are per Google Cloud **project**, not per API key: extra keys from the same project add no quota. Order is set by `GEMINI_MODELS`; on demo day, move `gemini-3.8-flash` first if the Lite models misread real bills. Room check passes `preferQuality`, which tries the first non-lite model in the list first (bills and stickers keep the configured order), and its prompt asks for every clearly-on device, not just the most obvious one.
+Limits are per Google Cloud **project**, not per API key: extra keys from the same project add no quota, but every model has its own. Daily limits reset at midnight Pacific time (4 PM in Manila). Order is set by `GEMINI_MODELS`, which lists every model that passed the bill, sticker and room test on 2026-11-24. Left out: the 2.5 models (retired, 404), `gemini-4-argon`/`carbon`/`neon`, `gemini-omni-flash-preview` and the image models (no free quota), and `gemini-4-hydrogen` (44 s on a room photo). Room check passes `preferQuality`, which tries the Flash models first in list order (bills and stickers keep the configured order, Lite first), and its prompt asks for every clearly-on device. On a test photo with a laptop and a hair straightener, Flash-Lite found the straightener in 1 of 7 tries and the Flash models in 11 of 11, so once the Flash models' 20/day are used, Room check may list only the most obvious device. Every Gemini call uses low thinking (`thinkingLevel: LOW`): the same answers in 2–10 s instead of up to 48 s.
 
 - **Configured by env, not code:** `GEMINI_MODELS` is a comma-separated list, so models can be swapped when Google renames or retires them, without a deploy. Pick current Flash / Flash-Lite IDs from the AI Studio model list; Google's model names and free limits change often. A step whose key is missing is skipped.
-- **Move to the next model on:** HTTP 429 (quota/rate limit), 5xx, timeout (15s per attempt), a safety block or refusal, or output that fails Zod validation.
-- **Don't move on for:** `readable: false` (a bad photo won't improve with another model: ask for a retake), or 400/413 bad input (fix the input instead). This saves quota.
+- **Move to the next model on:** HTTP 429 (quota/rate limit), 5xx, timeout (15s per attempt), a safety block or refusal, output that fails Zod validation, or a 400 from that model (it can't take this request, e.g. a retired preview or no JSON support). No model starts after 35 s (`CHAIN_BUDGET_MS` in `chain.ts`), so with 15 s per attempt every scan answers inside the routes' 60 s.
+- **Don't move on for:** `readable: false` (a bad photo won't improve with another model: ask for a retake), or 413 (too big for any model). If every model answers 400, the photo itself is the problem and the resident is asked for another one.
 - **One schema, every provider:** Zod schemas below are the single source. Convert with `z.toJSONSchema()` for Gemini (`responseMimeType: "application/json"` + `responseJsonSchema`; verified working on `gemini-3.5-flash-lite` 2026-11-23. Constrain free-text fields like `appliance_type` with a Zod enum: the test returned `"REFRIGERATOR"` in caps) and pass to Claude via `zodOutputFormat()`. Every response is **re-validated with Zod on our server** whatever the provider says, because a fallback model is exactly where shape drift appears.
 - **SDKs:** `@google/genai` (`ai.models.generateContent`, image as `inlineData` base64). `@anthropic-ai/sdk` only for the optional Claude step (`client.messages.parse`, `output_config.effort: "low"`).
 - **Image input:** resize client-side to ≤ 1600px longest edge (canvas) before upload, JPEG/PNG/WebP, ≤ 8 MB, checked server-side.
@@ -69,19 +72,21 @@ The resident's Scan page has a third tab that turns the phone camera into a chec
 - **Privacy:** the photo is never uploaded to Storage or written to the database; only `servedBy` is logged. The prompt asks whether someone is present, never who, and tells the model not to describe people. An alert stores its start time and devices (type, label, watts, ₱/hour, plug state), and on resolution its end time, kWh, ₱ and month; there is no photo, no observation and no people data. It is used only for that household's own list and monthly total.
 
 ```ts
-// src/lib/extraction/extract.ts (shape, not final code)
+// src/lib/extraction/chain.ts (shape, not final code; extract.ts builds the steps)
 type Step = { name: string; run: (img: Img, schema: ZodSchema) => Promise<unknown> };
 
 for (const step of steps) {              // steps built from env; missing keys skipped
+  if (pastBudget()) break;               // no model starts after 35 s
   try {
-    const parsed = schema.safeParse(await withTimeout(step.run(img, schema), 20_000));
+    const parsed = schema.safeParse(await withTimeout(step.run(img, schema), 15_000));
     if (parsed.success) return { data: parsed.data, servedBy: step.name };
     log(step.name, "invalid_output");
   } catch (err) {
-    if (isBadInput(err)) throw err;      // 400/413: don't burn other quotas
-    log(step.name, reasonOf(err));       // 429, 5xx, timeout, safety
+    if (status(err) === 413) throw new BadInputError(); // too big for any model
+    log(step.name, reasonOf(err));       // 400 (this model only), 429, 5xx, timeout, safety
   }
 }
+if (everyStepAnswered400) throw new BadInputError(); // the photo itself is bad
 return { data: null, servedBy: "manual" }; // UI shows manual entry form
 ```
 
@@ -261,3 +266,5 @@ See [.env.example](.env.example). `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `SUPABA
 | 2026-11-24 | AI marks each on device plugged/unplugged/unknown; unknown assumes plugged; a per-device **Plugged in** toggle overrides the AI; unplugged devices add no kWh/₱ | Requested by the project owner so a laptop on battery is not counted as grid use. Visual detection is imperfect (hidden charger, cable for another device, dead outlet), so the alert still appears for a wrong "unplugged" and the manual override wins over later AI reads |
 | 2026-11-24 | Room check tries the first non-lite Gemini model in `GEMINI_MODELS` first and its prompt lists every clearly-on device | A single Flash-Lite pass returned only the most obvious device in a multi-device room. Bills and stickers keep the configured (cheaper) order; the shared cap still limits usage |
 | 2026-11-24 | The demo seed backdates five monthly rounds (June–October 2026) and resets the demo accounts on every run: bills whose 12-month charts match the household's earlier bills, scores, badges, vouchers, store payouts and Room check alerts. `resident@` starts without his October bill and aircon, and holds the sample bill's account number | Requested by the project owner so the demo looks like a pilot that has run for months. The reset makes rehearsals repeatable; before, the demo's live scan of the sample bill was refused as a second October bill |
+| 2026-11-24 | `GEMINI_MODELS` lists every Gemini model that passed the bill, sticker and room test (six; Flash-Lite first, Room check Flash first); every Gemini call uses low thinking; Laptop (60 W) and Hair straightener (50 W) are appliance types | Requested by the project owner so scanning keeps working in production when one model's free quota (Flash: 5 RPM, 20/day) runs out or Google is overloaded (both Flash-Lite models answered 503 often on 2026-11-24). Each model has its own quota. Low thinking gave the same answers in 2–10 s instead of up to 48 s. On the test photo, the hair straightener was priced as a 1,000 W clothes iron and the laptop as a 150 W desktop |
+| 2026-11-24 | A 400 from one model moves the chain to the next; only when every model answers 400 is the photo treated as bad. No model starts after 35 s | With six models, one model refusing the request (a retired preview, no JSON support) must not stop scanning. The 35 s cutoff plus 15 s per attempt keeps every scan inside the routes' 60 s, so the resident gets the manual form instead of a timeout |

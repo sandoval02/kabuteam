@@ -23,6 +23,9 @@
 # misc
 .DS_Store
 *.pem
+.dev.log
+.dev.err
+.playwright-mcp/
 
 # debug
 npm-debug.log*

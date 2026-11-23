@@ -7,7 +7,12 @@ grant execute on all functions in schema public to service_role;
 
 -- authenticated (browser/user sessions): read only; RLS policies limit rows to their own.
 grant select on all tables in schema public to authenticated;
-revoke select on public._migrations from authenticated;
+-- db-migrate.mjs creates this table; the Supabase CLI tracks migrations elsewhere, so it may not exist.
+do $$ begin
+  if to_regclass('public._migrations') is not null then
+    execute 'revoke select on public._migrations from authenticated';
+  end if;
+end $$;
 
 -- anon gets nothing.
 revoke all on all tables in schema public from anon;

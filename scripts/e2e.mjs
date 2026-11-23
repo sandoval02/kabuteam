@@ -84,7 +84,7 @@ try {
   createdUsers.push(aUser.users.find((u) => u.email === email("a")).id);
 
   await enterBill(a, { account: `11${run.slice(-8).replace(/\D/g, "7").padStart(8, "1")}`, kwh: 117, amount: 1469.52, baseline: 150 });
-  await a.getByText("Bill saved. You're on this month").waitFor();
+  await a.locator("[data-sonner-toast]", { hasText: "Bill saved. You're on this month" }).first().waitFor();
   assert.ok(await a.getByText("22% less than last year").first().isVisible());
   ok("approved bill scored 22% saved");
 
@@ -184,7 +184,8 @@ try {
 
   step("Roles are enforced");
   await a.goto(`${BASE}/admin`);
-  assert.doesNotMatch(new URL(a.url()).pathname, /^\/admin/);
+  // The loading shell streams first; the server redirect lands on /home after hydration.
+  await a.waitForURL((u) => !u.pathname.startsWith("/admin"));
   ok("resident cannot open /admin");
 
   if (consoleErrors.length) throw new Error(`Console errors:\n${consoleErrors.join("\n")}`);

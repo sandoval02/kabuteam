@@ -2,7 +2,7 @@
 
 > Your barangay's fair energy-saving challenge. Scan your Meralco bill and your appliance stickers to see what each appliance really costs you, then compete with your neighbors on **% saved**, not raw kWh, for badges and sari-sari store vouchers.
 
-**Status:** Pre-flight complete. Ready to build, starting at [TASKS.md](TASKS.md) Phase 0. Assign owners in §2 first.
+**Status:** MVP built and passing unit + end-to-end tests. Remaining: deploy, test with real Meralco bills, and rehearse the demo ([TASKS.md](TASKS.md)). Assign owners in §2 first.
 
 ---
 
@@ -62,10 +62,10 @@ No coding begins until all of these are done. AI agents must refuse feature work
 
 1. **Scan the bill:** AI extracts account number, billing period, kWh, amount due, and the 12-month usage history. Every field is editable before confirming. Effective rate = amount ÷ kWh (Meralco bills include generation, transmission and other charges, so kWh × a single rate is wrong).
 2. **Scan appliances:** photograph each appliance's nameplate sticker; AI extracts type and wattage. If unreadable, pick from a list with typical wattage. Usage hours pre-filled and editable.
-3. **Itemized receipt:** per-appliance kWh and ₱, reconciled to the bill, sorted by cost, with the "Unaccounted" line when the gap is large. The top 3 lines each show one concrete swap with monthly saving and payback months.
-4. **Barangay leaderboard:** monthly ranking by fair score (rules above).
-5. **Badges:** First Scan, 10% Club, Efficient Already, Top 3 in Barangay.
-6. **Vouchers:** monthly top savers receive a single-use QR voucher. The store owner's page scans or enters the code and marks it redeemed; a used code can't be redeemed again.
+3. **Itemized receipt:** per-appliance kWh and ₱, reconciled to the bill, sorted by cost, with an "Unaccounted" line for every material gap (prominent when the gap is large). The top 3 lines each show one concrete swap with monthly saving and payback months.
+4. **Barangay leaderboard:** monthly ranking by fair score (rules above); your row stays visible while you scroll.
+5. **Badges:** First Scan, 10% Club (actual savings), Efficient Already, Top 3 in Barangay (from the leaderboard).
+6. **Vouchers:** monthly top savers receive a single-use QR voucher. The store owner's page scans the QR on browsers with camera QR support, or enters the 6-character code; a used code can't be redeemed again.
 7. **Barangay admin page:** review flagged bills (approve/reject), set the monthly voucher count and amount, add partner stores.
 
 ### Out of scope
@@ -102,16 +102,17 @@ No dependency gets added beyond this list without a written reason.
 | Layer | Choice | Why |
 |---|---|---|
 | Frontend + backend | **Next.js** (App Router, TypeScript strict) | Screens and server code in one project and one deploy; server code keeps the AI key secret |
-| Database | **Supabase Postgres** | Real SQL with constraints (unique account number, single-use voucher) and Row Level Security for the three roles |
+| Database | **Supabase Postgres** | Real SQL with constraints (unique account number, single-use voucher); role checks in server code, with RLS as defense in depth |
 | Auth | **Supabase Auth** (email + password) | Comes with the database. Accounts are created server-side as confirmed, because Supabase's built-in mailer allows only a few emails per hour, which would break a live demo |
 | File storage | **Supabase Storage** (private bucket) | Bill photos stay private to the owner and their barangay admin |
 | AI | **Gemini** via `@google/genai` (free tier) in a fallback chain: Flash → Flash-Lite → optional **Claude Haiku 5.5** (`@anthropic-ai/sdk`) → manual entry. Structured JSON validated with Zod | Free for the hackathon; if one model hits its quota or fails, the next catches it, and manual entry means scanning never dead-ends |
 | Validation | **Zod** | One schema validates both AI output and user input |
-| Styling | **Tailwind CSS** with tokens from `src/styles/tokens.css` | Fast to build; tokens enforce the design system |
-| UI components | Own small primitives in `components/ui.tsx` (Button, Field, SelectField, Notice) | Only a handful were needed; shadcn was allowed but not required |
+| Styling | **Tailwind CSS** with tokens from `src/app/globals.css` (light + dark) | Fast to build; tokens enforce the design system |
+| UI components | Own small primitives in `components/ui.tsx`, `components/field.tsx` and `components/form.tsx` (Button, Field, Notice, Card, IconTile, Skeleton, ValidatedForm, ConfirmDialog) | Only a handful were needed; shadcn was allowed but not required |
+| Toasts | **sonner** | Accessible, dismissible success/error toasts without a custom live-region implementation |
 | Landing page interaction | **Three.js** via `@react-three/fiber` + `drei` (3D barangay showing the fair score), **GSAP** ScrollTrigger (receipt prints on scroll), **Motion** (fair-score slider) | Requested by the project owner. Each one demonstrates a real mechanic; all respect `prefers-reduced-motion`; loaded only on the landing page |
 | Icons | **lucide-react** | One consistent SVG set |
-| QR | **qrcode** (generate); store page uses a typed code or the phone's camera via **@zxing/browser** | Small, single-purpose libraries |
+| QR | **qrcode** (generate); the store page uses the browser's native `BarcodeDetector` where available, with the typed 6-character code everywhere | No extra scanner dependency; the typed code always works |
 | Deployment | **Vercel** + Supabase cloud (free tiers) | Zero-config Next.js hosting |
 | External APIs | Google Gemini API; Anthropic API (optional fallback) | |
 

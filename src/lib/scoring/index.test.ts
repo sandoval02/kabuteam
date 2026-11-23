@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { baselineFromHistory, fairScore, plausibilityFlags, reconcile, swapTip } from "./index.ts";
+import { baselineFromHistory, earnedBadges, fairScore, plausibilityFlags, reconcile, swapTip } from "./index.ts";
 
 test("baseline uses same month last year, else mean of last 3", () => {
   const history = [
@@ -28,6 +28,12 @@ test("fair score: small house beats big house by percent, cap, low-usage floor",
   assert.equal(fairScore(300, 200).score, -50);
 });
 
+test("badges use actual savings, not the low-usage floor", () => {
+  assert.deepEqual(earnedBadges(fairScore(82, 85)), ["first_scan", "efficient"]); // 3.5% saved
+  assert.deepEqual(earnedBadges(fairScore(117, 150)), ["first_scan", "club_10"]); // 22% saved
+  assert.deepEqual(earnedBadges(fairScore(940, 1000)), ["first_scan"]); // 6% saved
+});
+
 test("reconcile: under-estimate leaves an Unaccounted line; totals add up", () => {
   const r = reconcile(
     [
@@ -42,6 +48,16 @@ test("reconcile: under-estimate leaves an Unaccounted line; totals add up", () =
   assert.ok(r.unaccounted);
   const sum = r.lines.reduce((s, l) => s + l.kwh, 0) + r.unaccounted!.kwh;
   assert.equal(Math.round(sum), 250);
+});
+
+test("reconcile: a small gap still becomes an Unaccounted line", () => {
+  const r = reconcile(
+    [{ id: "a", label: "Fan", type: "electric_fan", watts: 100, hoursPerDay: 10, isInverter: null }],
+    { kwh: 33, amountDue: 396, days: 30 },
+  );
+  assert.ok(r.unaccounted);
+  assert.equal(r.unaccounted!.kwh, 3);
+  assert.equal(r.lines.reduce((s, l) => s + l.kwh, 0) + r.unaccounted!.kwh, 33);
 });
 
 test("reconcile: over-estimate is scaled down to the bill exactly", () => {
@@ -66,7 +82,8 @@ test("plausibility flags bad rate, foreign account, big edits", () => {
     extracted: { kwh: 200, amountDue: 5000, baseline: 210 },
     accountOwnedByOther: true,
   });
-  assert.equal(flags.length, 4);
+  assert.equal(flags.length, 5);
+  assert.ok(flags.some((f) => f.includes("more than 50%")));
 });
 
 test("swap tip: non-inverter aircon gives saving and payback", () => {

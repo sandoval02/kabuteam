@@ -46,16 +46,16 @@ Sizes: display 32/38, h2 20/28, body 16/26, small 14/20 (minimum), amount-lg 28/
 
 ### Spacing
 
-4px base: `--space-1: 4px`, `--space-2: 8px`, `--space-3: 12px`, `--space-4: 16px`, `--space-6: 24px`, `--space-8: 32px`, `--space-12: 48px`.
-Page gutter: `--space-4` on mobile, `--space-6` from `md`.
+4px base, rendered at 90% (`html { font-size: 90% }`). Use Tailwind's 4px scale (`gap-3`, `px-4`, `py-2.5`, …).
+Page gutter: `px-4` on resident screens.
 
 ### Radius and shadow
 
 | Token | Value | Use |
 |---|---|---|
-| `--radius-sm` | 6px | Buttons, inputs (Tugon) |
-| `--radius-md` | 10px | Cards, tiles, receipt |
-| `--radius-lg` | 16px | Hero panels, floating navs |
+| `--radius-sm` | 14px | Buttons, inputs, chips |
+| `--radius-md` | 22px | Cards, tiles, receipt |
+| `--radius-lg` | 28px | Hero panels, floating navs |
 | `--shadow-receipt` | 1px `border` ring + deep soft drop | Every card (replaces a border) |
 | `--shadow-sheet` | ring + stronger drop | Floating navs, sheets |
 
@@ -99,15 +99,15 @@ Defined once in `src/components/ui/`. Every interactive component has: default, 
 
 | Component | Spec |
 |---|---|
-| **Button** | Variants: `primary` (filled primary), `secondary` (surface + `border-strong`), `ghost` (text only), `destructive` (filled error). Height 44px; full-width on mobile for the screen's primary action. Loading: spinner replaces the icon, label stays, width doesn't change, button disabled. |
-| **Input / form** | Label always visible above the field. 44px height, `border-strong` 1px, focus ring `--color-focus`. Helper text below in `text-small` muted; error text replaces helper in `--color-error` with `TriangleAlert`. Numeric fields use `inputmode="decimal"`. |
+| **Button** | Variants: `primary` (filled ink), `secondary` (surface + border), `lime`, `ghost`, `destructive`. Height 40px; full-width on mobile for the screen's primary action. Loading: spinner replaces the icon, label stays, width doesn't change, button disabled. |
+| **Input / form** | Label always visible above the field. 40px height, `border-strong` 1px, focus ring `--color-primary`. Helper text below in `text-small` muted; error text replaces helper in `--color-error` with `TriangleAlert`. Numeric fields use `inputmode="decimal"`. |
 | **PhotoCapture** | One big target: "Take photo of your bill" with `ScanLine`. Uses `<input type="file" accept="image/*" capture="environment">` (opens the phone camera, no library). Shows a thumbnail after capture with "Retake". |
-| **Receipt** | White surface, `--radius-md`, `--shadow-sm`. Header: barangay name, billing period. Lines: appliance name left, kWh and ₱ right in mono. Dashed `border-dashed` dividers. "Unaccounted" line in `--color-warning` with icon. Footer: bill total (must equal the sum). |
+| **Receipt** | White surface, `--radius-md`, `--shadow-receipt`. Header: barangay name, billing period. Lines: appliance name left, kWh and ₱ right in mono. Dashed `border-dashed` dividers. "Unaccounted" line in `--color-warning` with icon; any material gap appears so the visible lines add up to the footer total. |
 | **LeaderboardRow** | Rank (mono), household label (e.g. "Bahay #014", never a full name or address), savings % (mono, primary), badges as small accent chips. Current user's row is pinned at the bottom when off-screen. |
 | **Badge chip** | `--color-accent` background, `--color-text` label, `Award` icon, `--radius-sm`. Only for earned badges. |
 | **VoucherCard** | Big QR code, 6-character fallback code in mono, store name, amount, expiry. States: active, redeemed (greyed out with "Used on <date>"), expired. |
 | **Modal / bottom sheet** | Bottom sheet on mobile, centered modal ≥ md. Focus trapped, Esc and backdrop close, focus returns to trigger. |
-| **Navigation** | Resident: bottom nav, 4 items max: Scan, Receipt, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
+| **Navigation** | Resident: floating bottom nav, 4 items: Home, Scan, Ranking, Vouchers. Admin and store: simple top bar, single page each. |
 | **Toast** | Bottom, above nav. Success auto-dismisses after 4s; errors stay until dismissed. `role="status"` / `role="alert"`. |
 | **Skeleton** | Grey `--color-border` blocks matching the final layout, for receipt and leaderboard loading. |
 

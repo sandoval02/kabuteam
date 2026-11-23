@@ -15,7 +15,7 @@ import {
 import { requireViewer } from "@/lib/auth";
 import { APPLIANCE_TYPES, type ApplianceType } from "@/lib/extraction/schemas";
 import { getAppliances, getLatestBill, getLeaderboard, getScore, monthLabel } from "@/lib/data";
-import { daysInPeriod, reconcile, swapTip } from "@/lib/scoring";
+import { UNACCOUNTED_THRESHOLD, daysInPeriod, reconcile, swapTip } from "@/lib/scoring";
 import { Notice, kwh, peso, pct } from "@/components/ui";
 import { UsageChart } from "@/components/usage-chart";
 import { Sparkline } from "@/components/sparkline";
@@ -209,7 +209,7 @@ export default async function HomePage() {
                       {receipt.unaccounted && (
                         <Row
                           icon={TriangleAlert}
-                          tone="warning"
+                          tone={receipt.unaccounted.share > UNACCOUNTED_THRESHOLD ? "warning" : "plain"}
                           title="Unaccounted"
                           detail="Not explained by your appliances"
                           value={peso(receipt.unaccounted.pesos)}

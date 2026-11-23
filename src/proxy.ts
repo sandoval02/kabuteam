@@ -23,12 +23,13 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims verifies the JWT locally when the project uses asymmetric signing keys.
+  // The page still checks the role and household against the database.
+  const { data: auth } = await supabase.auth.getClaims();
+  const signedIn = Boolean(auth?.claims.sub);
 
   const isPublic = isPublicPath(request.nextUrl.pathname);
-  if (!user && !isPublic && !request.nextUrl.pathname.startsWith("/api")) {
+  if (!signedIn && !isPublic && !request.nextUrl.pathname.startsWith("/api")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

@@ -23,28 +23,31 @@ export function HeroScene() {
         Example barangay. Bar height = % saved vs the same month last year. {EXAMPLE_WINNER.label}, a small home, leads with{" "}
         {EXAMPLE_WINNER.score}%; the biggest house has {BIGGEST.score}%. Drag to look around.
       </figcaption>
-      {/* Same data for screen readers, since the canvas is visual only. */}
-      <table className="sr-only">
-        <caption>Example ranking by percent saved</caption>
-        <thead>
-          <tr>
-            <th>House</th>
-            <th>Last year kWh</th>
-            <th>This month kWh</th>
-            <th>Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {EXAMPLE_HOUSES.map((h) => (
-            <tr key={h.label}>
-              <td>{h.label}</td>
-              <td>{h.lastYear}</td>
-              <td>{h.now}</td>
-              <td>{h.score}%</td>
+      {/* Same data for screen readers, since the canvas is visual only.
+          The wrapper keeps the table's intrinsic width from causing a horizontal scrollbar. */}
+      <div className="sr-only">
+        <table>
+          <caption>Example ranking by percent saved</caption>
+          <thead>
+            <tr>
+              <th>House</th>
+              <th>Last year kWh</th>
+              <th>This month kWh</th>
+              <th>Score</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {EXAMPLE_HOUSES.map((h) => (
+              <tr key={h.label}>
+                <td>{h.label}</td>
+                <td>{h.lastYear}</td>
+                <td>{h.now}</td>
+                <td>{h.score}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

@@ -171,7 +171,7 @@ Full details: schema, API conventions and every decision with its reason in [ARC
 
 Each photo (bill, appliance sticker or room check) goes through a **fallback chain**; the first answer that passes Zod validation wins. If every step fails, the resident types the numbers in, so scanning never dead-ends; a failed room check says so and stops auto-check.
 
-1. Gemini models from `GEMINI_MODELS` (free tier). Bills and stickers try them in order; Room check tries the first non-lite model first, then the rest
+1. Six Gemini models from `GEMINI_MODELS` (free tier, each with its own quota). Bills and stickers try them in order, Flash-Lite first; Room check tries the Flash models first, because they catch every device in a room, then the rest
 2. Claude, if `ANTHROPIC_API_KEY` is set
 3. **Providers the barangay admin added** on the admin page: OpenAI (ChatGPT / Codex accounts), Anthropic, Google Gemini, xAI Grok, Groq, OpenRouter, or any OpenAI-compatible `https://` API
 4. Manual entry (always)

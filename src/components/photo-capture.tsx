@@ -6,9 +6,9 @@ import { buttonStyles } from "./ui";
 
 const MAX_EDGE = 1600;
 
-/** Downscale to ≤1600px JPEG before upload: smaller, faster, cheaper requests. */
-export async function resizeImage(file: File, maxEdge = MAX_EDGE): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
+/** Downscale a photo or the current video frame to ≤1600px JPEG before upload: smaller, faster, cheaper requests. */
+export async function resizeImage(source: ImageBitmapSource, maxEdge = MAX_EDGE): Promise<Blob> {
+  const bitmap = await createImageBitmap(source);
   const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
@@ -62,11 +62,11 @@ export function PhotoCapture({
   );
 }
 
-export async function postPhoto<T>(url: string, file: File): Promise<{ data?: T; error?: string }> {
+export async function postPhoto<T>(url: string, source: ImageBitmapSource): Promise<{ data?: T; error?: string }> {
   let body: FormData;
   try {
     body = new FormData();
-    body.append("photo", await resizeImage(file), "photo.jpg");
+    body.append("photo", await resizeImage(source), "photo.jpg");
   } catch {
     return { error: "That photo format could not be read. Try a JPEG or PNG photo." };
   }

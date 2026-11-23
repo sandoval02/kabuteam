@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { baselineFromHistory, earnedBadges, fairScore, plausibilityFlags, reconcile, swapTip } from "./index.ts";
+import { baselineFromHistory, earnedBadges, fairScore, pesosPerHour, plausibilityFlags, reconcile, swapTip } from "./index.ts";
 
 test("baseline uses same month last year, else mean of last 3", () => {
   const history = [
@@ -90,4 +90,9 @@ test("swap tip: non-inverter aircon gives saving and payback", () => {
   const tip = swapTip({ id: "a", label: "Aircon", type: "aircon", kwh: 120, pesos: 1500, share: 0.5, isInverter: false, hoursPerDay: 8 });
   assert.equal(tip.monthlySaving, 600);
   assert.equal(tip.paybackMonths, 50);
+});
+
+test("room check: a 100 W TV at ₱12.56/kWh costs ₱1.26 an hour", () => {
+  assert.equal(pesosPerHour(100, 12.56), 1.26);
+  assert.equal(pesosPerHour(1000, 0), 0);
 });

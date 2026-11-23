@@ -48,7 +48,7 @@ Order matters: the core loop first, polish last. Each task is about 2 hours or l
 
 - [ ] Run [TESTING.md](TESTING.md) end to end on a real phone **(you; the automated run at 375px passes)**
 - [x] Extraction accuracy check on synthetic bill + sticker: every field read correctly, including the 13-bar usage chart (`gemini-3.5-flash-lite`). Repeat with real bills.
-- [x] Seed demo barangay with realistic households: `npm run seed:demo` (7 households, 1 flagged bill for the review demo)
+- [x] Seed demo barangay as a pilot running since June 2026: `npm run seed:demo` (20 households, five monthly rounds, vouchers and store payouts, Room check alerts, 2 flagged bills; resets the demo accounts on each run)
 - [x] Fix blockers only (redeem function ambiguity, missing grants, form reset bug, stale-CSS issue)
 - [x] Room check: TipidWatch's live-camera energy check as a third Scan tab (shared AI chain and cap, ₱/hour from the bill, photos never stored), with e2e coverage through a fake camera
 - [x] Room check alerts resolve by tap (**Mark resolved**) or automatically when the next readable check sees someone in the room or no longer sees the device

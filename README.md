@@ -10,9 +10,9 @@
 
 ## Demo video
 
-[![Play the 90-second Kuryentipid demo video](docs/screenshots/demo-video.jpg)](docs/Kuryentipid-AVP-1m30s.mp4)
+[![Play the 90-second Kuryentipid demo video](docs/screenshots/demo-video.jpg)](docs/Kuryentipid-AVP-1m30s.mp4?raw=true)
 
-A 90-second narrated walkthrough: scanning a bill, the receipt that adds up to it, Room check, the fair ranking, and a voucher redeemed once at the sari-sari store. The screen recordings are from the live app, [kabuteam.vercel.app](https://kabuteam.vercel.app), in mobile view. [Download the video (MP4, 33 MB)](docs/Kuryentipid-AVP-1m30s.mp4).
+A 90-second narrated walkthrough: scanning a bill, the receipt that adds up to it, Room check, the fair ranking, and a voucher redeemed once at the sari-sari store. The screen recordings are from the live app, [kabuteam.vercel.app](https://kabuteam.vercel.app), in mobile view. [Download the video (MP4, 33 MB)](docs/Kuryentipid-AVP-1m30s.mp4?raw=true).
 
 ## Contents
 
